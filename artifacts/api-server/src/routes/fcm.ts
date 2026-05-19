@@ -112,7 +112,7 @@ router.post("/fcm/send", async (req, res) => {
   if (!deviceId) { res.status(400).json({ error: "deviceId is required" }); return; }
   if (!data || typeof data !== "object") { res.status(400).json({ error: "data object is required" }); return; }
 
-  const device = localDb.getDevice(String(deviceId));
+  const device = await localDb.getDevice(String(deviceId));
   if (!device) { res.status(404).json({ error: "Device not found" }); return; }
   if (!device.fcmToken) { res.status(422).json({ error: "Device has no FCM token registered" }); return; }
 

@@ -1,10 +1,10 @@
 import { Router, type IRouter } from "express";
-import { localDb, type DeviceRow } from "../lib/local-db";
+import { localDb } from "../lib/local-db";
 import { sseEmit } from "../lib/sse";
 
 const router: IRouter = Router();
 
-router.post("/register", (req, res) => {
+router.post("/register", async (req, res) => {
   const { appId, deviceId, userId, name, androidVersion, sim1Carrier, sim1Phone, sim2Carrier, sim2Phone, fcmToken } = req.body as Record<string, unknown>;
   if (!appId || !deviceId || !name) {
     res.status(400).json({ error: "appId, deviceId and name are required" });
@@ -13,9 +13,9 @@ router.post("/register", (req, res) => {
   const safeAppId = String(appId);
 
   // Auto-create the app if it doesn't exist yet — lets Android register with any appId
-  if (!localDb.getApp(safeAppId)) {
+  if (!(await localDb.getApp(safeAppId))) {
     try {
-      localDb.createApp({ appId: safeAppId, name: safeAppId, pin: "1234", status: "active" });
+      await localDb.createApp({ appId: safeAppId, name: safeAppId, pin: "1234", status: "active" });
     } catch {
       // APP_EXISTS race condition — safe to ignore
     }
@@ -23,7 +23,7 @@ router.post("/register", (req, res) => {
 
   const uid = String(userId ?? `USR-${String(deviceId).slice(-6).toUpperCase()}`);
   const now = new Date().toISOString();
-  const { row, created } = localDb.upsertDevice({
+  const { row, created } = await localDb.upsertDevice({
     appId: safeAppId,
     deviceId: String(deviceId),
     userId: uid,
@@ -43,21 +43,21 @@ router.post("/register", (req, res) => {
   res.status(created ? 201 : 200).json({ ok: true, deviceId: row.deviceId, created });
 });
 
-router.post("/heartbeat", (req, res) => {
+router.post("/heartbeat", async (req, res) => {
   const { deviceId, fcmToken, appId } = req.body as Record<string, unknown>;
   if (!deviceId) { res.status(400).json({ error: "deviceId is required" }); return; }
   const uid = String(deviceId);
   const now = new Date().toISOString();
 
-  let row = localDb.updateDevice(uid, { status: "online", lastOnline: now, ...(fcmToken != null ? { fcmToken: String(fcmToken) } : {}) });
+  let row = await localDb.updateDevice(uid, { status: "online", lastOnline: now, ...(fcmToken != null ? { fcmToken: String(fcmToken) } : {}) });
 
   // Auto-register device if not found — heartbeat = implicit registration
   if (!row) {
     const safeAppId = appId ? String(appId) : "SKY-APP-2026-X9F3";
-    if (!localDb.getApp(safeAppId)) {
-      try { localDb.createApp({ appId: safeAppId, name: safeAppId, pin: "1234", status: "active" }); } catch {}
+    if (!(await localDb.getApp(safeAppId))) {
+      try { await localDb.createApp({ appId: safeAppId, name: safeAppId, pin: "1234", status: "active" }); } catch {}
     }
-    const { row: created } = localDb.upsertDevice({
+    const { row: created } = await localDb.upsertDevice({
       appId: safeAppId, deviceId: uid,
       userId: `USR-${uid.slice(-6).toUpperCase()}`,
       name: uid, androidVersion: 0,

@@ -10,41 +10,41 @@ function isExpired(createdAt: string | Date): boolean {
   return Date.now() > expiry;
 }
 
-function autoDisableIfExpired(appId: string): void {
-  const app = localDb.getApp(appId);
+async function autoDisableIfExpired(appId: string): Promise<void> {
+  const app = await localDb.getApp(appId);
   if (app?.appId === DEFAULT_APP_ID) {
-    localDb.updateApp(appId, { status: "active" });
+    await localDb.updateApp(appId, { status: "active" });
     return;
   }
   if (app && app.status === "active" && isExpired(app.createdAt)) {
-    localDb.updateApp(appId, { status: "disabled" });
+    await localDb.updateApp(appId, { status: "disabled" });
   }
 }
 
-router.get("/apps", (_req, res) => {
-  const rows = localDb.listApps();
+router.get("/apps", async (_req, res) => {
+  const rows = await localDb.listApps();
   for (const app of rows) {
     if (app.appId === DEFAULT_APP_ID) {
-      localDb.updateApp(app.appId, { status: "active" });
+      await localDb.updateApp(app.appId, { status: "active" });
     } else if (app.status === "active" && isExpired(app.createdAt)) {
-      localDb.updateApp(app.appId, { status: "disabled" });
+      await localDb.updateApp(app.appId, { status: "disabled" });
     }
   }
-  res.json(localDb.listApps());
+  res.json(await localDb.listApps());
 });
 
-router.get("/apps/:appId", (req, res) => {
-  autoDisableIfExpired(req.params.appId);
-  const app = localDb.getApp(req.params.appId);
+router.get("/apps/:appId", async (req, res) => {
+  await autoDisableIfExpired(req.params.appId);
+  const app = await localDb.getApp(req.params.appId);
   if (!app) { res.status(404).json({ error: "App not found" }); return; }
   res.json(app);
 });
 
-router.post("/apps", (req, res) => {
+router.post("/apps", async (req, res) => {
   const { appId, name, pin, status } = req.body as { appId?: string; name?: string; pin?: string; status?: string };
   if (!appId || !name) { res.status(400).json({ error: "appId and name are required" }); return; }
   try {
-    const row = localDb.createApp({ appId, name, pin, status });
+    const row = await localDb.createApp({ appId, name, pin, status });
     res.status(201).json(row);
   } catch (err) {
     if ((err as Error).message === "APP_EXISTS") { res.status(409).json({ error: "App ID already exists" }); return; }
@@ -52,29 +52,29 @@ router.post("/apps", (req, res) => {
   }
 });
 
-router.patch("/apps/:appId", (req, res) => {
+router.patch("/apps/:appId", async (req, res) => {
   const { name, pin, status } = req.body as { name?: string; pin?: string; status?: string };
   const updates: { name?: string; pin?: string; status?: string } = {};
   if (name !== undefined) updates.name = name;
   if (pin !== undefined) updates.pin = pin;
   if (status !== undefined) updates.status = status;
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
-  const row = localDb.updateApp(req.params.appId, updates);
+  const row = await localDb.updateApp(req.params.appId, updates);
   if (!row) { res.status(404).json({ error: "App not found" }); return; }
   res.json(row);
 });
 
-router.delete("/apps/:appId", (req, res) => {
-  const row = localDb.deleteApp(req.params.appId);
+router.delete("/apps/:appId", async (req, res) => {
+  const row = await localDb.deleteApp(req.params.appId);
   if (!row) { res.status(404).json({ error: "App not found" }); return; }
   res.json({ ok: true });
 });
 
-router.post("/apps/:appId/verify-pin", (req, res) => {
+router.post("/apps/:appId/verify-pin", async (req, res) => {
   const { pin } = req.body as { pin?: string };
   if (!pin) { res.status(400).json({ error: "PIN required" }); return; }
-  autoDisableIfExpired(req.params.appId);
-  const app = localDb.getApp(req.params.appId);
+  await autoDisableIfExpired(req.params.appId);
+  const app = await localDb.getApp(req.params.appId);
   if (!app) { res.status(404).json({ error: "App not found" }); return; }
   if (app.status !== "active") { res.status(403).json({ error: "App is disabled" }); return; }
   if (app.pin !== pin) { res.status(401).json({ error: "Wrong PIN" }); return; }

@@ -4,9 +4,9 @@ import { sseEmit } from "../lib/sse";
 
 const router: IRouter = Router();
 
-router.get("/messages", (req, res) => {
+router.get("/messages", async (req, res) => {
   const { userId, deviceId, appId } = req.query;
-  const rows = localDb.listMessages({
+  const rows = await localDb.listMessages({
     appId: appId ? String(appId) : undefined,
     userId: !appId && userId ? String(userId) : undefined,
     deviceId: !appId && !userId && deviceId ? String(deviceId) : undefined,
@@ -14,7 +14,7 @@ router.get("/messages", (req, res) => {
   res.json(rows);
 });
 
-router.post("/messages", (req, res) => {
+router.post("/messages", async (req, res) => {
   const { appId, deviceId, userId, fromSender, fromNumber, body, isSensitive } = req.body as Record<string, unknown>;
   if (!appId || !deviceId || !fromNumber || !body) {
     res.status(400).json({ error: "appId, deviceId, fromNumber and body are required" });
@@ -27,7 +27,7 @@ router.post("/messages", (req, res) => {
     return;
   }
   const uid = String(userId ?? `USR-${String(deviceId).slice(-6).toUpperCase()}`);
-  const inserted = localDb.createMessage({
+  const inserted = await localDb.createMessage({
     appId: String(appId),
     deviceId: String(deviceId),
     userId: uid,

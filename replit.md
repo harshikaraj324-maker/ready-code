@@ -4,12 +4,18 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `NEON_DATABASE_URL` — Neon serverless Postgres connection string
+- Required env: `FIREBASE_SERVICE_ACCOUNT_JSON` — Firebase service account for FCM
+
+## Database
+
+- **Neon Postgres** (serverless) via `@neondatabase/serverless` + Drizzle ORM
+- Schema auto-created on startup from `src/lib/db.ts` (CREATE TABLE IF NOT EXISTS)
+- Tables: `apps`, `devices`, `messages`, `form_data` with proper indexes
+- On first startup, legacy `data/local-db.json` is auto-migrated into Postgres (one-time, idempotent)
+- `data/local-db.json` is gitignored — never commit it
 
 ## Stack
 

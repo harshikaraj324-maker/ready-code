@@ -61,3 +61,7 @@ attached_assets/*Pasted*
 .env
 .env.local
 .env.*.local
+
+# Local JSON DB — migrated to Postgres, do not commit
+artifacts/api-server/data/local-db.json
+artifacts/api-server/data/local-db.json.broken-*
