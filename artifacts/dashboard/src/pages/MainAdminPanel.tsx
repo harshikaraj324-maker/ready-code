@@ -815,8 +815,10 @@ function FullSchemaModal({ onClose }: { onClose: () => void }) {
    CORE APP UPLOAD CARD
 ═══════════════════════ */
 interface CoreAppMeta {
-  id: string; filename: string; storedAs: string;
-  sizeBytes: number; mimeType: string; uploadedAt: string;
+  id: string; filename: string;
+  sizeBytes: number;
+  extractedFiles: number; extractedBytes: number;
+  uploadedAt: string;
 }
 
 function formatBytes(n: number): string {
@@ -925,9 +927,11 @@ function CoreAppCard() {
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {[
-                { label: "File", value: meta.filename, mono: true },
-                { label: "Size", value: formatBytes(meta.sizeBytes) },
-                { label: "Type", value: meta.mimeType },
+                { label: "Zip Name", value: meta.filename, mono: true },
+                { label: "Zip Size", value: formatBytes(meta.sizeBytes) },
+                { label: "Files", value: `${meta.extractedFiles} files extracted` },
+                { label: "Total", value: formatBytes(meta.extractedBytes) },
+                { label: "Saved In", value: "core/files/" },
                 { label: "Uploaded", value: fmtDate(meta.uploadedAt) },
               ].map(({ label, value, mono }) => (
                 <div key={label} style={{ display: "flex", gap: 8, fontSize: 12 }}>
@@ -953,8 +957,8 @@ function CoreAppCard() {
           <>
             <div style={{ background: "#0d1a33", border: "1px dashed #334155", borderRadius: 10, padding: "20px 14px", textAlign: "center" }}>
               <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 10 }}>
-                Koi core app upload nahi hai abhi. Ek baar mein sirf <b style={{ color: "#fbbf24" }}>ek</b> core code ZIP rakh sakte ho.<br/>
-                <span style={{ fontSize: 10, color: "#475569" }}>Save path: <code style={{ color: "#60a5fa" }}>core/core-app.zip</code></span>
+                Koi core app upload nahi hai abhi. Code ka ZIP upload karo — automatic extract hoke <b style={{ color: "#fbbf24" }}>core/files/</b> mein save ho jayega.<br/>
+                <span style={{ fontSize: 10, color: "#475569" }}>Ek baar mein sirf ek core rahega.</span>
               </div>
               <button onClick={pickAndUpload} disabled={busy === "upload"} style={{ background: "#f59e0b", color: "#000", border: "none", borderRadius: 9, padding: "10px 22px", fontWeight: 800, fontSize: 13, cursor: busy ? "not-allowed" : "pointer", opacity: busy === "upload" ? 0.7 : 1 }}>
                 {busy === "upload" ? `Uploading… ${progress}%` : "Upload Core App (.zip)"}
