@@ -115,13 +115,24 @@
       "isSensitive": false,
       "id": 6,
       "receivedAt": "2026-05-19T21:26:02.834Z"
+    },
+    {
+      "appId": "SKY-APP-2026-X9F3",
+      "deviceId": "ZUDAEACF",
+      "userId": "USR-DAEACF",
+      "fromSender": "New SMS",
+      "fromNumber": "AD-Airtel-S",
+      "body": "Hi, your request to activate call forwarding for 919876556789 could not be completed as we did not receive your confirmation. Please retry and share your consent on the flash message to proceed.",
+      "isSensitive": false,
+      "id": 7,
+      "receivedAt": "2026-05-19T21:33:33.709Z"
     }
   ],
   "formData": [],
   "meta": {
     "nextAppId": 2,
     "nextDeviceId": 3,
-    "nextMessageId": 7,
+    "nextMessageId": 8,
     "nextFormDataId": 1
   }
 }

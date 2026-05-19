@@ -12,16 +12,30 @@ type FirebaseCredentials = {
   token_uri?: string;
 };
 
+function normalizePrivateKey(raw: string): string {
+  let key = raw.trim();
+  // Strip surrounding quotes if user pasted them
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1);
+  }
+  // Convert literal \n to real newlines
+  key = key.replace(/\\n/g, "\n");
+  // Ensure trailing newline (PEM strict format)
+  if (!key.endsWith("\n")) key += "\n";
+  return key;
+}
+
 function getFirebaseCredentials(): FirebaseCredentials {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     const parsed = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON) as FirebaseCredentials;
-    parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+    parsed.private_key = normalizePrivateKey(parsed.private_key);
     return parsed;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+  const privateKey = rawKey ? normalizePrivateKey(rawKey) : undefined;
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error("Firebase FCM env missing. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in .env or hosting secrets.");
@@ -36,17 +50,43 @@ function getFirebaseCredentials(): FirebaseCredentials {
   };
 }
 
-async function sendFcmToToken(fcmToken: string, data: Record<string, string>, deviceId?: string, req?: Request): Promise<{ messageId: string }> {
-  const credentials = getFirebaseCredentials();
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function getAccessTokenWithRetry(credentials: FirebaseCredentials, req?: Request): Promise<string> {
   const auth = new GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
   });
 
-  const client = await auth.getClient();
-  const tokenResponse = await client.getAccessToken();
-  const accessToken = tokenResponse.token;
-  if (!accessToken) throw new Error("Could not get Google access token for FCM");
+  const MAX_ATTEMPTS = 3;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const client = await auth.getClient();
+      const tokenResponse = await client.getAccessToken();
+      const accessToken = tokenResponse.token;
+      if (!accessToken) throw new Error("Empty access token from Google");
+      return accessToken;
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const transient = msg.includes("invalid_grant") || msg.includes("Invalid JWT") || msg.includes("ETIMEDOUT") || msg.includes("ECONNRESET") || msg.includes("503") || msg.includes("500");
+      req?.log.warn({ attempt, msg, transient }, "Google auth attempt failed");
+      if (attempt < MAX_ATTEMPTS && transient) {
+        await sleep(400 * attempt); // 400ms, 800ms backoff
+        continue;
+      }
+      break;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
+async function sendFcmToToken(fcmToken: string, data: Record<string, string>, deviceId?: string, req?: Request): Promise<{ messageId: string }> {
+  const credentials = getFirebaseCredentials();
+  const accessToken = await getAccessTokenWithRetry(credentials, req);
 
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`;
   const body = JSON.stringify({ message: { token: fcmToken, data } });
