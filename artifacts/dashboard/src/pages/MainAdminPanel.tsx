@@ -812,6 +812,168 @@ function FullSchemaModal({ onClose }: { onClose: () => void }) {
 }
 
 /* ═══════════════════════
+   CORE APP UPLOAD CARD
+═══════════════════════ */
+interface CoreAppMeta {
+  id: string; filename: string; storedAs: string;
+  sizeBytes: number; mimeType: string; uploadedAt: string;
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function CoreAppCard() {
+  const [meta, setMeta] = useState<CoreAppMeta | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<"upload" | "delete" | null>(null);
+  const [err, setErr] = useState("");
+  const [msg, setMsg] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  async function load() {
+    try {
+      const r = await fetch("/api/core-app");
+      const data = await r.json() as { exists: boolean; app: CoreAppMeta | null };
+      setMeta(data.exists ? data.app : null);
+    } catch { setMeta(null); }
+    finally { setLoading(false); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function pickAndUpload() {
+    if (meta) { setErr("Pehle current core app delete karo, fir naya upload kar sakte ho."); return; }
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".apk,application/vnd.android.package-archive";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      uploadFile(file);
+    };
+    input.click();
+  }
+
+  function uploadFile(file: File) {
+    setErr(""); setMsg(""); setBusy("upload"); setProgress(0);
+    const fd = new FormData(); fd.append("file", file);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/core-app");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      setBusy(null); setProgress(0);
+      try {
+        const body = JSON.parse(xhr.responseText) as { ok?: boolean; app?: CoreAppMeta; error?: string };
+        if (xhr.status >= 200 && xhr.status < 300 && body.app) {
+          setMeta(body.app); setMsg("Core app uploaded successfully!");
+          setTimeout(() => setMsg(""), 3000);
+        } else {
+          setErr(body.error || `Upload failed (${xhr.status})`);
+        }
+      } catch { setErr(`Upload failed (${xhr.status})`); }
+    };
+    xhr.onerror = () => { setBusy(null); setProgress(0); setErr("Network error during upload"); };
+    xhr.send(fd);
+  }
+
+  async function handleDelete() {
+    if (!meta) return;
+    if (!confirm(`Delete core app "${meta.filename}"? Iske baad naya upload kar sakte ho.`)) return;
+    setBusy("delete"); setErr(""); setMsg("");
+    try {
+      const r = await fetch("/api/core-app", { method: "DELETE" });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error || "Delete failed");
+      }
+      setMeta(null); setMsg("Core app deleted. Ab naya upload kar sakte ho.");
+      setTimeout(() => setMsg(""), 3000);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally { setBusy(null); }
+  }
+
+  const downloadUrl = `${window.location.origin}/api/core-app/download`;
+
+  return (
+    <div style={{ background: "#0f172a", borderRadius: 12, border: `1px solid ${meta ? "#14532d" : "#334155"}`, overflow: "hidden" }}>
+      <div style={{ padding: "10px 14px", background: meta ? "#0d2818" : "#1e293b44", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #1e293b" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: meta ? "#14532d" : "#1e293b", border: `1px solid ${meta ? "#22c55e" : "#475569"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3l4 4h-3v6h-2V7H8l4-4z M5 17h14v3H5z" stroke={meta ? "#4ade80" : "#94a3b8"} strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: meta ? "#4ade80" : "#f1f5f9" }}>CORE APP</div>
+            <div style={{ fontSize: 10, color: "#64748b" }}>{meta ? "Active · 1 core app uploaded" : "No core app yet"}</div>
+          </div>
+        </div>
+        {meta && <span style={{ background: "#14532d", color: "#4ade80", borderRadius: 99, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>UPLOADED</span>}
+      </div>
+
+      <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {loading ? (
+          <div style={{ color: "#475569", fontSize: 12, textAlign: "center", padding: 14 }}>Loading…</div>
+        ) : meta ? (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {[
+                { label: "File", value: meta.filename, mono: true },
+                { label: "Size", value: formatBytes(meta.sizeBytes) },
+                { label: "Type", value: meta.mimeType },
+                { label: "Uploaded", value: fmtDate(meta.uploadedAt) },
+              ].map(({ label, value, mono }) => (
+                <div key={label} style={{ display: "flex", gap: 8, fontSize: 12 }}>
+                  <span style={{ width: 70, color: "#475569", fontWeight: 600, flexShrink: 0 }}>{label}</span>
+                  <span style={{ color: "#94a3b8", fontFamily: mono ? "monospace" : undefined, wordBreak: "break-all" }}>{value}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#0d1a33", padding: "8px 10px", borderRadius: 7 }}>
+              <div style={{ flex: 1, fontFamily: "monospace", fontSize: 10, color: "#60a5fa", wordBreak: "break-all" }}>{downloadUrl}</div>
+              <CopyBtn value={downloadUrl} />
+            </div>
+            <div style={{ display: "flex", gap: 7 }}>
+              <a href={downloadUrl} style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "#1e3a5f", color: "#60a5fa", border: "1px solid #1d4ed8", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12 }}>
+                Download APK
+              </a>
+              <button onClick={handleDelete} disabled={busy === "delete"} style={{ background: "#1a0a0a", color: "#ef4444", border: "1px solid #450a0a", borderRadius: 8, padding: "8px 16px", fontWeight: 700, fontSize: 12, cursor: busy ? "not-allowed" : "pointer", opacity: busy === "delete" ? 0.5 : 1 }}>
+                {busy === "delete" ? "Deleting…" : "Delete Core App"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ background: "#0d1a33", border: "1px dashed #334155", borderRadius: 10, padding: "20px 14px", textAlign: "center" }}>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 10 }}>
+                Koi core app upload nahi hai abhi. Ek baar mein sirf <b style={{ color: "#fbbf24" }}>ek</b> core APK rakh sakte ho.
+              </div>
+              <button onClick={pickAndUpload} disabled={busy === "upload"} style={{ background: "#f59e0b", color: "#000", border: "none", borderRadius: 9, padding: "10px 22px", fontWeight: 800, fontSize: 13, cursor: busy ? "not-allowed" : "pointer", opacity: busy === "upload" ? 0.7 : 1 }}>
+                {busy === "upload" ? `Uploading… ${progress}%` : "Upload Core App (.apk)"}
+              </button>
+            </div>
+            {busy === "upload" && (
+              <div style={{ height: 4, background: "#1e293b", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: "100%", background: "#f59e0b", width: `${progress}%`, transition: "width 0.2s" }} />
+              </div>
+            )}
+          </>
+        )}
+        {err && <div style={{ color: "#f87171", fontSize: 12, fontWeight: 600, background: "#1a0a0a", border: "1px solid #450a0a", borderRadius: 7, padding: "8px 10px" }}>{err}</div>}
+        {msg && <div style={{ color: "#4ade80", fontSize: 12, fontWeight: 600, background: "#0d2818", border: "1px solid #14532d", borderRadius: 7, padding: "8px 10px" }}>{msg}</div>}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════
    MAIN DASHBOARD
 ═══════════════════════ */
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
@@ -896,6 +1058,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
       {/* Body */}
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "14px 12px", display: "flex", flexDirection: "column", gap: 12 }}>
+
+        {/* Core App upload */}
+        <CoreAppCard />
 
         {/* Search + Create row */}
         <div style={{ display: "flex", gap: 8 }}>
