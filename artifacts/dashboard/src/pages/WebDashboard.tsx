@@ -1981,7 +1981,7 @@ export default function WebDashboard() {
 
   const VALID_PAGES: Page[] = ["home", "messages", "groups", "devices", "settings"];
   const [page, setPage] = useState<Page>(() => {
-    const saved = sessionStorage.getItem("mrrobot_page") as Page | null;
+    const saved = localStorage.getItem("mrrobot_page") as Page | null;
     return saved && VALID_PAGES.includes(saved) ? saved : "home";
   });
   const [selectedDevice, setSelectedDevice] = useState<DbDevice | null>(null);
@@ -1999,20 +1999,20 @@ export default function WebDashboard() {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => { sessionStorage.setItem("mrrobot_page", page); }, [page]);
+  useEffect(() => { localStorage.setItem("mrrobot_page", page); }, [page]);
 
   function onOpenDevice(device: DbDevice, msgId?: string) {
     setBackPage(page);
     setSelectedDevice(device);
     setPage("devices");
-    sessionStorage.setItem("mrrobot_device_id", device.deviceId);
+    localStorage.setItem("mrrobot_device_id", device.deviceId);
     if (msgId) setScrollToMsgId(msgId);
   }
 
   function onBack() {
     setSelectedDevice(null);
     setPage(backPage);
-    sessionStorage.removeItem("mrrobot_device_id");
+    localStorage.removeItem("mrrobot_device_id");
   }
 
   const loadData = useCallback(async (silent = false) => {
@@ -2028,7 +2028,7 @@ export default function WebDashboard() {
       const [d, m, f] = await Promise.all([dRes.json(), mRes.json(), fRes.ok ? fRes.json() : []]) as [DbDevice[], DbMessage[], DbFormData[]];
       setDevices(d); setMessages(m); setFormData(f);
       setError(null);
-      const savedDeviceId = sessionStorage.getItem("mrrobot_device_id");
+      const savedDeviceId = localStorage.getItem("mrrobot_device_id");
       if (savedDeviceId) {
         const found = (d as DbDevice[]).find(dev => dev.deviceId === savedDeviceId);
         if (found) setSelectedDevice(found);
@@ -2065,7 +2065,7 @@ export default function WebDashboard() {
         // If this device is selected → update selected too
         setSelectedDevice(sel => sel?.deviceId === device.deviceId ? device : sel);
         // sessionStorage selected device sync
-        const savedId = sessionStorage.getItem("mrrobot_device_id");
+        const savedId = localStorage.getItem("mrrobot_device_id");
         if (savedId === device.deviceId) setSelectedDevice(device);
       });
 
