@@ -995,6 +995,15 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
   const [selected, setSelected] = useState<DbDevice | null>(initialDevice ?? null);
   const [fromExternal, setFromExternal] = useState<boolean>(!!initialDevice);
 
+  // Sync from parent — page refresh par initialDevice null hota hai, loadData ke baad
+  // parent selectedDevice set karta hai. Tab DevicesPage ko bhi sync karna chahiye.
+  useEffect(() => {
+    if (initialDevice && (!selected || selected.deviceId !== initialDevice.deviceId)) {
+      setSelected(initialDevice);
+      setFromExternal(true);
+    }
+  }, [initialDevice]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Live sync — jab bhi devices list update ho (SSE se), selected ka data bhi refresh ho
   useEffect(() => {
     if (!selected) return;
