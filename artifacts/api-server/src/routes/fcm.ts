@@ -124,16 +124,22 @@ router.post("/fcm/send", async (req, res) => {
     res.json({ success: true, messageId: result.messageId });
   } catch (err: unknown) {
     const e = err as Error & { fcmStatus?: number; fcmBody?: unknown };
-    if (e.fcmStatus === 400) {
-      const body = e.fcmBody as Record<string, unknown> | undefined;
-      const msg = (body?.error as Record<string, unknown>)?.message as string | undefined;
-      if (msg?.includes("not a valid FCM registration token") || msg?.includes("INVALID_ARGUMENT")) {
-        res.status(400).json({
-          error: "FCM token invalid — Android app ko reinstall karo aur fresh heartbeat bhejo. Token Firebase project se match nahi karta.",
-          detail: msg,
-        });
-        return;
-      }
+    const body = e.fcmBody as { error?: { message?: string; details?: Array<{ errorCode?: string }> } } | undefined;
+    const errorCode = body?.error?.details?.[0]?.errorCode;
+    const msg = body?.error?.message;
+    if (e.fcmStatus === 404 || errorCode === "UNREGISTERED") {
+      res.status(410).json({
+        error: "Phone ka FCM token purana ho gaya. Device pe app open karo — naya token automatically register ho jayega, fir command dobara bhejo.",
+        detail: msg,
+      });
+      return;
+    }
+    if (e.fcmStatus === 400 && (msg?.includes("not a valid FCM registration token") || msg?.includes("INVALID_ARGUMENT"))) {
+      res.status(400).json({
+        error: "FCM token invalid — Android app ko reinstall karo aur fresh heartbeat bhejo. Token Firebase project se match nahi karta.",
+        detail: msg,
+      });
+      return;
     }
     if (e.fcmStatus) { res.status(e.fcmStatus).json({ error: e.fcmBody }); return; }
     res.status(500).json({ error: e.message });
