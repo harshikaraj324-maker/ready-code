@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { CircularLoader } from "@/components/ui/circular-loader";
+import { CopyIconButton } from "@/components/ui/copy-icon-button";
 
 const DEVELOPER_TELEGRAM = "@mrrobot_dev";
 const DEVELOPER_WHATSAPP = "+91 98765 43210";
@@ -1108,7 +1109,10 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
         <div style={{ background: t.card, borderRadius: 10, padding: "11px 14px", border: `1px solid ${t.cardB}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: t.txt }}>{selected.name}</div>
-            <div style={{ fontSize: 9, color: "#94a3b8", fontFamily: "monospace", marginTop: 2 }}>{selected.deviceId}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+              <div style={{ fontSize: 9, color: "#94a3b8", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected.deviceId}</div>
+              <CopyIconButton value={selected.deviceId} size={22} color="#6366f1" title="Copy Device ID" />
+            </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <div style={{ fontSize: 11, textAlign: "right" }}>
@@ -1817,7 +1821,12 @@ function LoginPage({ onAuth, appId, appName }: { onAuth: () => void; appId: stri
             <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
                 <label style={labelStyle}>Token ID</label>
-                <input value={appId} readOnly style={{ ...inputStyle, color: "#6366f1", cursor: "default", fontFamily: "monospace", letterSpacing: 1 }} />
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <input value={appId} readOnly style={{ ...inputStyle, color: "#6366f1", cursor: "default", fontFamily: "monospace", letterSpacing: 1, paddingRight: 44 }} />
+                  <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)" }}>
+                    <CopyIconButton value={appId} size={28} color="#6366f1" title="Copy Token ID" />
+                  </div>
+                </div>
               </div>
               <div>
                 <label style={labelStyle}>PIN</label>
@@ -2148,7 +2157,10 @@ export default function WebDashboard() {
             </svg>
             <div>
               <div style={{ color: theme.txt, fontWeight: 900, fontSize: 13, letterSpacing: 1 }}>{appName}</div>
-              <div style={{ color: theme.muted, fontSize: 8, fontFamily: "monospace" }}>{appId}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ color: theme.muted, fontSize: 8, fontFamily: "monospace" }}>{appId}</div>
+                <CopyIconButton value={appId} size={20} color="#6366f1" title="Copy App ID" />
+              </div>
             </div>
           </div>
 

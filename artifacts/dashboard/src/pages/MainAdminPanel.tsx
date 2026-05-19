@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { CircularLoader } from "@/components/ui/circular-loader";
+import { CopyIconButton } from "@/components/ui/copy-icon-button";
 
 interface App {
   id: number; appId: string; name: string; pin: string; status: string; createdAt: string;
@@ -190,15 +191,7 @@ function AppCardStats({ appId }: { appId: string }) {
 }
 
 function CopyBtn({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  function copy() {
-    navigator.clipboard.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); });
-  }
-  return (
-    <button onClick={copy} style={{ background: copied ? "#14532d" : "#1e293b", color: copied ? "#4ade80" : "#94a3b8", border: `1px solid ${copied ? "#166534" : "#334155"}`, borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-      {copied ? "✓ Copied" : "Copy"}
-    </button>
-  );
+  return <CopyIconButton value={value} size={28} color="#6366f1" />;
 }
 
 /* ═══════════════════════
