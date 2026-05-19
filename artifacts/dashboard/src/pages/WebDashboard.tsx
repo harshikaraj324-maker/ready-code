@@ -180,12 +180,21 @@ function MsgCard({
         </div>
 
         {/* Body */}
-        <div style={{ fontSize: 13, color: msg.isSensitive ? "#16a34a" : t.txt, fontWeight: msg.isSensitive ? 600 : 400, lineHeight: 1.55, marginBottom: 6 }}>{msg.body}</div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 6 }}>
+          <div style={{ flex: 1, fontSize: 13, color: msg.isSensitive ? "#16a34a" : t.txt, fontWeight: msg.isSensitive ? 600 : 400, lineHeight: 1.55, wordBreak: "break-word" }}>{msg.body}</div>
+          <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
+        </div>
 
         {/* From / Mob */}
-        <div style={{ display: "flex", gap: 16, fontSize: 11 }}>
-          <span style={{ color: "#64748b" }}><span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>FROM</span>{msg.fromSender}</span>
-          <span style={{ color: "#64748b" }}><span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>MOB</span>{msg.fromNumber}</span>
+        <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>FROM</span>{msg.fromSender}
+            <CopyIconButton value={msg.fromSender} size={18} color="#6366f1" title="Copy sender" />
+          </span>
+          <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>MOB</span>{msg.fromNumber}
+            <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
+          </span>
         </div>
       </div>
 
@@ -224,12 +233,16 @@ function MsgCard({
                     {/* Key-value rows */}
                     {pairs.length === 0
                       ? <div style={{ fontSize: 10, color: t.muted, padding: "2px 10px 4px" }}>—</div>
-                      : pairs.map(([k, v]) => (
-                        <div key={k} style={{ display: "flex", gap: 8, padding: "2px 10px", alignItems: "baseline", background: t.card }}>
-                          <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, minWidth: 86, flexShrink: 0 }}>{fmtKey(k)}</span>
-                          <span style={{ fontSize: 10, color: t.txt, wordBreak: "break-all", flex: 1 }}>{String(v ?? "")}</span>
-                        </div>
-                      ))
+                      : pairs.map(([k, v]) => {
+                        const sv = String(v ?? "");
+                        return (
+                          <div key={k} style={{ display: "flex", gap: 8, padding: "3px 10px", alignItems: "center", background: t.card }}>
+                            <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, minWidth: 86, flexShrink: 0 }}>{fmtKey(k)}</span>
+                            <span style={{ fontSize: 10, color: t.txt, wordBreak: "break-all", flex: 1 }}>{sv}</span>
+                            {sv && <CopyIconButton value={sv} size={18} color="#8b5cf6" title={`Copy ${fmtKey(k)}`} />}
+                          </div>
+                        );
+                      })
                     }
                   </div>
                 );
@@ -1290,10 +1303,19 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
                 <div style={{ display: "flex", gap: 5, alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: 10, color: t.muted }}>{fmtDate(msg.receivedAt)}</span>
                 </div>
-                <div style={{ fontSize: 12, color: msg.isSensitive ? "#16a34a" : t.txt, fontWeight: msg.isSensitive ? 600 : 400, lineHeight: 1.5, marginBottom: 4 }}>{msg.body}</div>
-                <div style={{ display: "flex", gap: 12, fontSize: 11 }}>
-                  <span style={{ color: "#64748b" }}><span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>FROM</span>{msg.fromSender}</span>
-                  <span style={{ color: "#64748b" }}><span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>MOB</span>{msg.fromNumber}</span>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}>
+                  <div style={{ flex: 1, fontSize: 12, color: msg.isSensitive ? "#16a34a" : t.txt, fontWeight: msg.isSensitive ? 600 : 400, lineHeight: 1.5, wordBreak: "break-word" }}>{msg.body}</div>
+                  <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
+                </div>
+                <div style={{ display: "flex", gap: 10, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>FROM</span>{msg.fromSender}
+                    <CopyIconButton value={msg.fromSender} size={18} color="#6366f1" title="Copy sender" />
+                  </span>
+                  <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>MOB</span>{msg.fromNumber}
+                    <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
+                  </span>
                 </div>
               </div>
             ))
