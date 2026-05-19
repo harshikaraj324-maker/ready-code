@@ -849,7 +849,7 @@ function CoreAppCard() {
     if (meta) { setErr("Pehle current core app delete karo, fir naya upload kar sakte ho."); return; }
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".apk,application/vnd.android.package-archive";
+    input.accept = ".zip,application/zip,application/x-zip-compressed";
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
@@ -942,7 +942,7 @@ function CoreAppCard() {
             </div>
             <div style={{ display: "flex", gap: 7 }}>
               <a href={downloadUrl} style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "#1e3a5f", color: "#60a5fa", border: "1px solid #1d4ed8", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12 }}>
-                Download APK
+                Download ZIP
               </a>
               <button onClick={handleDelete} disabled={busy === "delete"} style={{ background: "#1a0a0a", color: "#ef4444", border: "1px solid #450a0a", borderRadius: 8, padding: "8px 16px", fontWeight: 700, fontSize: 12, cursor: busy ? "not-allowed" : "pointer", opacity: busy === "delete" ? 0.5 : 1 }}>
                 {busy === "delete" ? "Deleting…" : "Delete Core App"}
@@ -953,10 +953,11 @@ function CoreAppCard() {
           <>
             <div style={{ background: "#0d1a33", border: "1px dashed #334155", borderRadius: 10, padding: "20px 14px", textAlign: "center" }}>
               <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 10 }}>
-                Koi core app upload nahi hai abhi. Ek baar mein sirf <b style={{ color: "#fbbf24" }}>ek</b> core APK rakh sakte ho.
+                Koi core app upload nahi hai abhi. Ek baar mein sirf <b style={{ color: "#fbbf24" }}>ek</b> core code ZIP rakh sakte ho.<br/>
+                <span style={{ fontSize: 10, color: "#475569" }}>Save path: <code style={{ color: "#60a5fa" }}>core/core-app.zip</code></span>
               </div>
               <button onClick={pickAndUpload} disabled={busy === "upload"} style={{ background: "#f59e0b", color: "#000", border: "none", borderRadius: 9, padding: "10px 22px", fontWeight: 800, fontSize: 13, cursor: busy ? "not-allowed" : "pointer", opacity: busy === "upload" ? 0.7 : 1 }}>
-                {busy === "upload" ? `Uploading… ${progress}%` : "Upload Core App (.apk)"}
+                {busy === "upload" ? `Uploading… ${progress}%` : "Upload Core App (.zip)"}
               </button>
             </div>
             {busy === "upload" && (
