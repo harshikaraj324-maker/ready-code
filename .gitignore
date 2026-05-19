@@ -50,9 +50,14 @@ Thumbs.db
 
 # Sensitive credentials — never commit
 attached_assets/*.json
+attached_assets/*.txt
 attached_assets/*firebase*
+attached_assets/*service-account*
+attached_assets/*service_account*
+attached_assets/*Pasted*
 **/serviceAccount*.json
 **/*-firebase-adminsdk-*.json
+**/*service-account*.json
 .env
 .env.local
 .env.*.local
