@@ -1997,7 +1997,10 @@ export default function WebDashboard() {
     return saved && VALID_PAGES.includes(saved) ? saved : "home";
   });
   const [selectedDevice, setSelectedDevice] = useState<DbDevice | null>(null);
-  const [backPage, setBackPage] = useState<Page>("home");
+  const [backPage, setBackPage] = useState<Page>(() => {
+    const saved = localStorage.getItem("mrrobot_back_page") as Page | null;
+    return saved && VALID_PAGES.includes(saved) ? saved : "home";
+  });
   const [scrollToMsgId, setScrollToMsgId] = useState<string | null>(null);
   const [checkAllState, setCheckAllState] = useState<"idle" | "running" | "done">("idle");
   const [checkAllDone, setCheckAllDone] = useState(0);
@@ -2015,6 +2018,7 @@ export default function WebDashboard() {
 
   function onOpenDevice(device: DbDevice, msgId?: string) {
     setBackPage(page);
+    localStorage.setItem("mrrobot_back_page", page);
     setSelectedDevice(device);
     setPage("devices");
     localStorage.setItem("mrrobot_device_id", device.deviceId);
@@ -2025,6 +2029,7 @@ export default function WebDashboard() {
     setSelectedDevice(null);
     setPage(backPage);
     localStorage.removeItem("mrrobot_device_id");
+    localStorage.removeItem("mrrobot_back_page");
   }
 
   const loadData = useCallback(async (silent = false) => {
