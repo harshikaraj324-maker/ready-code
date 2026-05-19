@@ -1128,7 +1128,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
   if (selected) {
     return (
       <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-        <button onClick={() => { setSelected(null); setActiveAction(null); if (fromExternal && onBack) onBack(); }} style={{
+        <button onClick={() => { setSelected(null); setActiveAction(null); localStorage.removeItem("mrrobot_device_id"); if (fromExternal && onBack) onBack(); }} style={{
           alignSelf: "flex-start", background: t.card, border: `1px solid ${t.cardB}`,
           borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer", color: t.muted,
         }}>
@@ -1362,7 +1362,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
             { label: "User ID", value: device.userId, mono: true },
           ];
           return (
-            <div key={device.deviceId} onClick={() => { setSelected(device); setFromExternal(false); }}
+            <div key={device.deviceId} onClick={() => { setSelected(device); setFromExternal(false); localStorage.setItem("mrrobot_device_id", device.deviceId); }}
               style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden" }}>
 
               {/* Card header */}
