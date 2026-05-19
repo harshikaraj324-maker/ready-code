@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { CircularLoader } from "@/components/ui/circular-loader";
 
 interface App {
   id: number; appId: string; name: string; pin: string; status: string; createdAt: string;
@@ -911,7 +912,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
         {/* App list */}
         {loadingApps ? (
-          <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Loading…</div>
+          <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+            <CircularLoader size={48} label="Loading apps…" color="#f59e0b" labelColor="#94a3b8" />
+          </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40 }}>
             <div style={{ color: "#475569", marginBottom: 8 }}>No apps yet.</div>

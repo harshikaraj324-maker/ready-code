@@ -1,6 +1,7 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import MainAdminPanel from "@/pages/MainAdminPanel";
 import WebDashboard from "@/pages/WebDashboard";
+import { TopProgressBar } from "@/components/ui/top-progress";
 
 function NotFound() {
   return (
@@ -27,6 +28,7 @@ function Router() {
 function App() {
   return (
     <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+      <TopProgressBar />
       <Router />
     </WouterRouter>
   );

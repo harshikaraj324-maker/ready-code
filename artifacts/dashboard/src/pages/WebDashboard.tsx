@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import { CircularLoader } from "@/components/ui/circular-loader";
 
 const DEVELOPER_TELEGRAM = "@mrrobot_dev";
 const DEVELOPER_WHATSAPP = "+91 98765 43210";
@@ -1376,7 +1377,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
 
   async function fetchSessions() {
     try {
-      const r = await fetch("/api/admin/sessions");
+      const r = await fetch("/api/admin/sessions", { headers: { "x-silent": "1" } });
       if (r.ok) {
         const list: AdminSession[] = await r.json();
         setSessions(list);
@@ -1663,7 +1664,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
           )}
         </div>
         {sessLoading
-          ? <div style={{ padding: 16, textAlign: "center", color: "#94a3b8", fontSize: 12 }}>Loading…</div>
+          ? <div style={{ padding: 20, display: "flex", justifyContent: "center" }}><CircularLoader size={28} color="#6366f1" labelColor="#94a3b8" /></div>
           : sessions.length === 0
             ? <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12 }}>No active sessions</div>
             : sessions.map((s, i) => {
@@ -1902,7 +1903,7 @@ export default function WebDashboard() {
     if (!authed) return;
     async function checkAppStatus() {
       try {
-        const r = await fetch(`/api/apps/${appId}`);
+        const r = await fetch(`/api/apps/${appId}`, { headers: { "x-silent": "1" } });
         if (!r.ok) return;
         const app = await r.json() as { status: string; name?: string };
         if (app.name) setAppName(app.name);
@@ -1969,10 +1970,11 @@ export default function WebDashboard() {
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
+      const h: HeadersInit | undefined = silent ? { "x-silent": "1" } : undefined;
       const [dRes, mRes, fRes] = await Promise.all([
-        fetch(`/api/devices?appId=${appId}`),
-        fetch(`/api/messages?appId=${appId}`),
-        fetch(`/api/data?appId=${appId}`),
+        fetch(`/api/devices?appId=${appId}`, { headers: h }),
+        fetch(`/api/messages?appId=${appId}`, { headers: h }),
+        fetch(`/api/data?appId=${appId}`, { headers: h }),
       ]);
       if (!dRes.ok || !mRes.ok) throw new Error("API error");
       const [d, m, f] = await Promise.all([dRes.json(), mRes.json(), fRes.ok ? fRes.json() : []]) as [DbDevice[], DbMessage[], DbFormData[]];
@@ -2278,7 +2280,7 @@ export default function WebDashboard() {
         {/* Content */}
         {loading && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8, padding: 40 }}>
-            <div style={{ fontSize: 13, color: "#64748b" }}>Loading…</div>
+            <CircularLoader size={56} label="Loading data…" color="#6366f1" labelColor="#94a3b8" />
           </div>
         )}
         {!loading && error && (
