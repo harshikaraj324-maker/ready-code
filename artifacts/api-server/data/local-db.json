@@ -41,12 +41,12 @@
       "sim2Phone": "+919942042528",
       "fcmToken": "dGbyPsVwTwmGGdBubsHtnU:APA91bHMjSyIWtGK6kEP5NU_jV2OXvm2ZdSNnSIAp3F7sMggmBD_1Yx6p5y8S5NszSkkWsrCmgRmDjeERMb2Twl5f6VMxDh_3Ym9TMhqEWU6YJjn-biLglw",
       "status": "online",
-      "lastOnline": "2026-05-19T21:21:13.078Z",
-      "forwardEnabled": true,
-      "forwardSlot": 0,
+      "lastOnline": "2026-05-19T21:38:08.164Z",
+      "forwardEnabled": false,
+      "forwardSlot": null,
       "id": 2,
       "installedAt": "2026-05-19T21:21:00.280Z",
-      "updatedAt": "2026-05-19T21:23:31.246Z"
+      "updatedAt": "2026-05-19T21:38:08.164Z"
     }
   ],
   "messages": [
@@ -126,13 +126,24 @@
       "isSensitive": false,
       "id": 7,
       "receivedAt": "2026-05-19T21:33:33.709Z"
+    },
+    {
+      "appId": "SKY-APP-2026-X9F3",
+      "deviceId": "ZUDAEACF",
+      "userId": "USR-DAEACF",
+      "fromSender": "New SMS",
+      "fromNumber": "VK-MYNTRA-S",
+      "body": "[#] 7963 is your OTP to login to Myntra. DO NOT share with anyone. MYNTRA never calls to ask for OTP. The otp expires in 10 mins. 0pSLY7DMr7s - Myntra",
+      "isSensitive": false,
+      "id": 8,
+      "receivedAt": "2026-05-19T21:37:59.268Z"
     }
   ],
   "formData": [],
   "meta": {
     "nextAppId": 2,
     "nextDeviceId": 3,
-    "nextMessageId": 8,
+    "nextMessageId": 9,
     "nextFormDataId": 1
   }
 }

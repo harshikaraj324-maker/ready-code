@@ -71,9 +71,9 @@ async function getAccessTokenWithRetry(credentials: FirebaseCredentials, req?: R
       return accessToken;
     } catch (err) {
       lastErr = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      const transient = msg.includes("invalid_grant") || msg.includes("Invalid JWT") || msg.includes("ETIMEDOUT") || msg.includes("ECONNRESET") || msg.includes("503") || msg.includes("500");
-      req?.log.warn({ attempt, msg, transient }, "Google auth attempt failed");
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const transient = errMsg.includes("ETIMEDOUT") || errMsg.includes("ECONNRESET") || errMsg.includes("503") || errMsg.includes("500");
+      req?.log.warn({ attempt, errMsg, transient, keyEmail: credentials.client_email, projectId: credentials.project_id, keyLen: credentials.private_key.length, keyStartsWith: credentials.private_key.slice(0, 30), keyEndsWith: credentials.private_key.slice(-30) }, "Google auth attempt failed");
       if (attempt < MAX_ATTEMPTS && transient) {
         await sleep(400 * attempt); // 400ms, 800ms backoff
         continue;
