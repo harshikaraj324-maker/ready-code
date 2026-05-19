@@ -122,10 +122,10 @@ function mkDeviceCmd(_uid: string, action: string, extra?: Record<string, unknow
   };
   return { type: action };
 }
-/** call_forward → Android: enqueueCallForward */
+/** admin_update → Android: setAdminNumber / toggle admin status (NO call, NO sim) */
 function mkAdminUpdate(_did: string, number: string, status: "on" | "off"): Record<string, string> {
-  if (status === "on") return { type: "call_forward", action: "activate", number, sim: "0" };
-  return { type: "call_forward", action: "deactivate", number: "", sim: "0" };
+  if (status === "on") return { type: "admin_update", status: "on", number };
+  return { type: "admin_update", status: "off" };
 }
 
 /* ─── Row helper ─── */
