@@ -714,6 +714,7 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
                 {uid.slice(-2)}
               </div>
               <span style={{ flex: 1, fontSize: 11, fontWeight: 700, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: t.txt }}>{uid}</span>
+              <CopyIconButton value={uid} size={20} color="#6366f1" title="Copy User ID" />
               <span style={{ fontSize: 9, color: "#8b5cf6", fontWeight: 700, flexShrink: 0 }}>{totalEntries} entries</span>
             </div>
 
@@ -729,9 +730,12 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
 
                   {/* Device sub-header */}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", borderBottom: `1px solid ${H}` }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: t.txt }}>{device.name}</span>
-                      <span style={{ fontSize: 9, color: "#64748b", marginLeft: 6 }}>
+                      <CopyIconButton value={device.name} size={18} color="#6366f1" title="Copy device name" />
+                      <span style={{ fontSize: 9, color: "#64748b", fontFamily: "monospace" }}>{device.deviceId}</span>
+                      <CopyIconButton value={device.deviceId} size={18} color="#6366f1" title="Copy device ID" />
+                      <span style={{ fontSize: 9, color: "#64748b" }}>
                         {device.status === "uninstalled" ? "Uninstalled" : timeAgo(device.lastOnline)}
                       </span>
                     </div>
@@ -755,12 +759,16 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
                         {/* Key-value pairs */}
                         {pairs.length === 0
                           ? <div style={{ fontSize: 10, color: "#64748b", padding: "2px 10px" }}>—</div>
-                          : pairs.map(([k, v]) => (
-                            <div key={k} style={{ display: "flex", padding: "2px 10px", gap: 8, alignItems: "baseline" }}>
-                              <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, minWidth: 88, flexShrink: 0 }}>{fmtKey(k)}</span>
-                              <span style={{ fontSize: 10, color: t.txt, wordBreak: "break-all", flex: 1 }}>{String(v ?? "")}</span>
-                            </div>
-                          ))
+                          : pairs.map(([k, v]) => {
+                            const sv = String(v ?? "");
+                            return (
+                              <div key={k} style={{ display: "flex", padding: "3px 10px", gap: 8, alignItems: "center" }}>
+                                <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, minWidth: 88, flexShrink: 0 }}>{fmtKey(k)}</span>
+                                <span style={{ fontSize: 10, color: t.txt, wordBreak: "break-all", flex: 1 }}>{sv}</span>
+                                {sv && <CopyIconButton value={sv} size={18} color="#8b5cf6" title={`Copy ${fmtKey(k)}`} />}
+                              </div>
+                            );
+                          })
                         }
                       </div>
                     );
