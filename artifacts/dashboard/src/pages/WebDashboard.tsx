@@ -995,8 +995,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
   const [selected, setSelected] = useState<DbDevice | null>(initialDevice ?? null);
   const [fromExternal, setFromExternal] = useState<boolean>(!!initialDevice);
 
-  // Sync from parent — page refresh par initialDevice null hota hai, loadData ke baad
-  // parent selectedDevice set karta hai. Tab DevicesPage ko bhi sync karna chahiye.
+  // Sync from parent — Messages/Home/Groups se device kholne par
   useEffect(() => {
     if (initialDevice && (!selected || selected.deviceId !== initialDevice.deviceId)) {
       setSelected(initialDevice);
@@ -1004,11 +1003,24 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
     }
   }, [initialDevice]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Live sync — jab bhi devices list update ho (SSE se), selected ka data bhi refresh ho
+  // Refresh-restore + live sync — devices list change hote hi:
+  // 1. Agar selected hai → fresh copy se update karo (SSE se naya data aya)
+  // 2. Agar selected null hai par localStorage mein device_id hai → restore karo (refresh case)
   useEffect(() => {
-    if (!selected) return;
-    const fresh = devices.find(d => d.deviceId === selected.deviceId);
-    if (fresh) setSelected(fresh);
+    if (devices.length === 0) return;
+    if (selected) {
+      const fresh = devices.find(d => d.deviceId === selected.deviceId);
+      if (fresh && fresh !== selected) setSelected(fresh);
+      return;
+    }
+    const savedId = localStorage.getItem("mrrobot_device_id");
+    if (savedId) {
+      const found = devices.find(d => d.deviceId === savedId);
+      if (found) {
+        setSelected(found);
+        setFromExternal(false);
+      }
+    }
   }, [devices]); // eslint-disable-line react-hooks/exhaustive-deps
   const [msgSearch, setMsgSearch] = useState("");
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
