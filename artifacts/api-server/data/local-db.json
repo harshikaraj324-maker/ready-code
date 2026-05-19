@@ -9,12 +9,32 @@
       "createdAt": "2026-05-19T19:22:26.307Z"
     }
   ],
-  "devices": [],
+  "devices": [
+    {
+      "appId": "SKY-APP-2026-X9F3",
+      "deviceId": "BLBX9FO6",
+      "userId": "USR-BX9FO6",
+      "name": "moto g45 5G",
+      "androidVersion": 35,
+      "sim1Carrier": "airtel",
+      "sim1Phone": "+919006991978",
+      "sim2Carrier": "Jio True5G — Jio",
+      "sim2Phone": "+919942042528",
+      "fcmToken": "cSAVTi6hT3mUSqrHK53YGz:APA91bHNVGCm7hl2ov1xZC4xCFURGBDfipcaxuMSoxP2aVToc1YLNP_X9_dynnm8-7E-oY3rwqjymQALDsBBpV96Mj8vjpndfMhOtTvIDtpn9vDIJ6MxOSc",
+      "status": "online",
+      "lastOnline": "2026-05-19T21:11:42.926Z",
+      "forwardEnabled": false,
+      "forwardSlot": null,
+      "id": 1,
+      "installedAt": "2026-05-19T21:11:42.096Z",
+      "updatedAt": "2026-05-19T21:11:42.926Z"
+    }
+  ],
   "messages": [],
   "formData": [],
   "meta": {
     "nextAppId": 2,
-    "nextDeviceId": 1,
+    "nextDeviceId": 2,
     "nextMessageId": 1,
     "nextFormDataId": 1
   }
