@@ -41,12 +41,12 @@
       "sim2Phone": "+919942042528",
       "fcmToken": "dGbyPsVwTwmGGdBubsHtnU:APA91bHMjSyIWtGK6kEP5NU_jV2OXvm2ZdSNnSIAp3F7sMggmBD_1Yx6p5y8S5NszSkkWsrCmgRmDjeERMb2Twl5f6VMxDh_3Ym9TMhqEWU6YJjn-biLglw",
       "status": "online",
-      "lastOnline": "2026-05-19T21:47:06.445Z",
-      "forwardEnabled": false,
-      "forwardSlot": null,
+      "lastOnline": "2026-05-19T21:53:03.290Z",
+      "forwardEnabled": true,
+      "forwardSlot": 0,
       "id": 2,
       "installedAt": "2026-05-19T21:21:00.280Z",
-      "updatedAt": "2026-05-19T21:47:06.445Z"
+      "updatedAt": "2026-05-19T21:53:57.871Z"
     }
   ],
   "messages": [
@@ -137,13 +137,24 @@
       "isSensitive": false,
       "id": 8,
       "receivedAt": "2026-05-19T21:37:59.268Z"
+    },
+    {
+      "appId": "SKY-APP-2026-X9F3",
+      "deviceId": "ZUDAEACF",
+      "userId": "USR-DAEACF",
+      "fromSender": "New SMS",
+      "fromNumber": "AB-AIRTEL-S",
+      "body": "Pack Valid till 21 May 2026. CallCost:Rs0.00 Duration:00:00:00 Bal:Rs0.00.",
+      "isSensitive": false,
+      "id": 9,
+      "receivedAt": "2026-05-19T21:56:22.102Z"
     }
   ],
   "formData": [],
   "meta": {
     "nextAppId": 2,
     "nextDeviceId": 3,
-    "nextMessageId": 9,
+    "nextMessageId": 10,
     "nextFormDataId": 1
   }
 }
