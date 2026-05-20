@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts",
+    "build": "vite build --config vite.config.ts && pnpm run build:worker",
+    "build:worker": "esbuild functions/_worker.ts --bundle --format=esm --target=es2022 --platform=neutral --conditions=worker,browser --external:cloudflare:* --outfile=dist/public/_worker.js",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -52,6 +53,7 @@
     "@cloudflare/workers-types": "^4.20241224.0",
     "@neondatabase/serverless": "^0.10.4",
     "drizzle-orm": "catalog:",
+    "esbuild": "catalog:",
     "hono": "^4.6.14",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
