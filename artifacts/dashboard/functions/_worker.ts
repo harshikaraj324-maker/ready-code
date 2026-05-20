@@ -858,57 +858,8 @@ app.get("/api/events", async (c) => {
   return stub.fetch("https://do.local/ws", c.req.raw);
 });
 
-// =================== DURABLE OBJECT ===================
-export class EventBus {
-  state: DurableObjectState;
-  constructor(state: DurableObjectState, _env: Env) {
-    this.state = state;
-  }
-
-  async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/ws") {
-      const upgrade = request.headers.get("Upgrade");
-      if (upgrade !== "websocket") {
-        return new Response("Expected websocket", { status: 426 });
-      }
-      const pair = new WebSocketPair();
-      const [client, server] = [pair[0], pair[1]];
-      this.state.acceptWebSocket(server);
-      // initial ping payload so the client knows the channel is alive
-      try { server.send(JSON.stringify({ event: "ping", data: { t: Date.now() } })); } catch {}
-      return new Response(null, { status: 101, webSocket: client });
-    }
-
-    if (url.pathname === "/broadcast" && request.method === "POST") {
-      const body = await request.json() as { event: string; data: unknown };
-      const payload = JSON.stringify(body);
-      const sockets = this.state.getWebSockets();
-      for (const ws of sockets) {
-        try { ws.send(payload); } catch {
-          try { ws.close(1011, "send error"); } catch {}
-        }
-      }
-      return new Response(JSON.stringify({ ok: true, clients: sockets.length }), {
-        headers: { "content-type": "application/json" },
-      });
-    }
-
-    return new Response("Not found", { status: 404 });
-  }
-
-  // Hibernation API callbacks — required so DO can sleep and reload sockets
-  async webSocketMessage(_ws: WebSocket, _msg: string | ArrayBuffer): Promise<void> {
-    // We don't need to handle inbound from client; just ignore.
-  }
-  async webSocketClose(ws: WebSocket, code: number, _reason: string, _wasClean: boolean): Promise<void> {
-    try { ws.close(code, "closed"); } catch {}
-  }
-  async webSocketError(ws: WebSocket, _err: unknown): Promise<void> {
-    try { ws.close(1011, "error"); } catch {}
-  }
-}
+// EventBus Durable Object class lives in the separate `event-bus-worker`
+// Worker (Pages cannot host DO classes directly). See `artifacts/event-bus-worker/`.
 
 // =================== WORKER ENTRY ===================
 export default {
