@@ -1,6 +1,8 @@
+import { WebSocketServer } from "ws";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { initDb, pool } from "./lib/db";
+import { wsSubscribe, wsUnsubscribe } from "./lib/sse";
 
 const rawPort = process.env["PORT"];
 
@@ -24,6 +26,24 @@ async function main() {
       process.exit(1);
     }
     logger.info({ port }, "Server listening");
+  });
+
+  // WebSocket server for real-time pub-sub on /api/events
+  const wss = new WebSocketServer({ noServer: true });
+  server.on("upgrade", (req, socket, head) => {
+    const url = req.url || "";
+    if (url === "/api/events" || url.startsWith("/api/events?")) {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wsSubscribe(ws);
+        try {
+          ws.send(JSON.stringify({ event: "ping", data: { t: Date.now() } }));
+        } catch {}
+        ws.on("close", () => wsUnsubscribe(ws));
+        ws.on("error", () => wsUnsubscribe(ws));
+      });
+    } else {
+      socket.destroy();
+    }
   });
 
   const shutdown = (signal: string) => {
