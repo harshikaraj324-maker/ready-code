@@ -151,6 +151,15 @@ async function ensureSchema(env: Env): Promise<void> {
       )`,
       `CREATE INDEX IF NOT EXISTS form_data_app_submitted_idx ON form_data(app_id, submitted_at)`,
       `CREATE INDEX IF NOT EXISTS form_data_device_idx ON form_data(device_id)`,
+      `CREATE TABLE IF NOT EXISTS admin_sessions (
+        id TEXT PRIMARY KEY,
+        login_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_active TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        user_agent TEXT NOT NULL DEFAULT '',
+        ip TEXT NOT NULL DEFAULT '',
+        device TEXT NOT NULL DEFAULT ''
+      )`,
+      `CREATE INDEX IF NOT EXISTS admin_sessions_login_idx ON admin_sessions(login_time DESC)`,
     ];
     for (const s of stmts) await sqlClient(s);
     // ensure default app
@@ -333,12 +342,11 @@ async function sendFcmToToken(env: Env, fcmToken: string, data: Record<string, s
   return { messageId: String(body["name"] ?? "sent") };
 }
 
-// =================== ADMIN SESSIONS (in-memory per worker isolate) ===================
+// =================== ADMIN SESSIONS (Postgres-backed for cross-isolate consistency) ===================
 type AdminSession = {
   id: string; loginTime: string; lastActive: string;
   userAgent: string; ip: string; device: string;
 };
-const adminSessions = new Map<string, AdminSession>();
 function parseDevice(ua: string): string {
   if (/iPhone/.test(ua)) return "iPhone";
   if (/iPad/.test(ua)) return "iPad";
@@ -743,36 +751,46 @@ app.post("/api/fcm/online-check", async (c) => {
   }
 });
 
-// ------- ADMIN SESSIONS -------
-app.get("/api/admin/sessions", (c) => {
-  const list = Array.from(adminSessions.values()).sort(
-    (a, b) => new Date(b.loginTime).getTime() - new Date(a.loginTime).getTime(),
-  );
+// ------- ADMIN SESSIONS (Postgres-backed) -------
+app.get("/api/admin/sessions", async (c) => {
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
+  const rows = await sqlClient(
+    `SELECT id, login_time, last_active, user_agent, ip, device FROM admin_sessions ORDER BY login_time DESC`,
+  ) as Array<Record<string, unknown>>;
+  const list: AdminSession[] = rows.map((r) => ({
+    id: String(r.id),
+    loginTime: isoReq(r.login_time as Date | string),
+    lastActive: isoReq(r.last_active as Date | string),
+    userAgent: String(r.user_agent ?? ""),
+    ip: String(r.ip ?? ""),
+    device: String(r.device ?? ""),
+  }));
   return c.json(list);
 });
-app.post("/api/admin/sessions", (c) => {
+app.post("/api/admin/sessions", async (c) => {
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
   const ua = c.req.header("user-agent") ?? "";
   const ip = (c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown").split(",")[0].trim();
-  const now = new Date().toISOString();
-  const session: AdminSession = {
-    id: crypto.randomUUID(),
-    loginTime: now, lastActive: now,
-    userAgent: ua, ip, device: parseDevice(ua),
-  };
-  adminSessions.set(session.id, session);
-  return c.json({ sessionId: session.id });
+  const id = crypto.randomUUID();
+  await sqlClient(
+    `INSERT INTO admin_sessions (id, user_agent, ip, device) VALUES ($1, $2, $3, $4)`,
+    [id, ua, ip, parseDevice(ua)],
+  );
+  return c.json({ sessionId: id });
 });
-app.patch("/api/admin/sessions/:id/ping", (c) => {
-  const s = adminSessions.get(c.req.param("id"));
-  if (s) { s.lastActive = new Date().toISOString(); }
+app.patch("/api/admin/sessions/:id/ping", async (c) => {
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
+  await sqlClient(`UPDATE admin_sessions SET last_active = NOW() WHERE id = $1`, [c.req.param("id")]);
   return c.json({ ok: true });
 });
-app.delete("/api/admin/sessions/:id", (c) => {
-  adminSessions.delete(c.req.param("id"));
+app.delete("/api/admin/sessions/:id", async (c) => {
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
+  await sqlClient(`DELETE FROM admin_sessions WHERE id = $1`, [c.req.param("id")]);
   return c.json({ ok: true });
 });
-app.delete("/api/admin/sessions", (c) => {
-  adminSessions.clear();
+app.delete("/api/admin/sessions", async (c) => {
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
+  await sqlClient(`DELETE FROM admin_sessions`);
   return c.json({ ok: true });
 });
 
