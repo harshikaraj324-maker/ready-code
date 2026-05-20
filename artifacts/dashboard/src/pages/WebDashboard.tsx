@@ -2057,70 +2057,74 @@ export default function WebDashboard() {
   // Initial load
   useEffect(() => { void loadData(false); }, [loadData]);
 
-  // SSE — complete live connection, zero polling, zero re-fetch
+  // WebSocket — complete live connection via Cloudflare Durable Object pub-sub
   // Server pushes full device/message objects → client merges directly into state
   useEffect(() => {
     if (!authed) return;
-    let es = new EventSource("/api/events");
+    let ws: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
 
-    function attach(source: EventSource) {
-      // device_updated: heartbeat, registration, patch — full device object in payload
-      source.addEventListener("device_updated", (e: MessageEvent) => {
-        const device = JSON.parse(e.data) as DbDevice;
-        if (device.appId !== appId) return;
-        // Notify Online Check timer to stop
-        window.dispatchEvent(new CustomEvent("mrrobot:device_updated", { detail: { deviceId: device.deviceId } }));
-        // Merge just this one device into state — no API call
-        setDevices(prev => {
-          const idx = prev.findIndex(d => d.deviceId === device.deviceId);
-          if (idx === -1) return [device, ...prev]; // new device
-          const next = [...prev];
-          next[idx] = device;
-          return next;
-        });
-        // If this device is selected → update selected too
-        setSelectedDevice(sel => sel?.deviceId === device.deviceId ? device : sel);
-        // sessionStorage selected device sync
-        const savedId = localStorage.getItem("mrrobot_device_id");
-        if (savedId === device.deviceId) setSelectedDevice(device);
-      });
+    function connect() {
+      if (closed) return;
+      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const url = `${proto}//${window.location.host}/api/events`;
+      ws = new WebSocket(url);
 
-      // message_added: new SMS — just prepend, never re-fetch
-      source.addEventListener("message_added", (e: MessageEvent) => {
-        const data = JSON.parse(e.data) as { appId: string; message: DbMessage };
-        if (data.appId !== appId) return;
-        setMessages(prev => {
-          if (prev.some(m => m.id === data.message.id)) return prev; // dedupe
-          return [data.message, ...prev];
-        });
-      });
+      ws.onmessage = (e) => {
+        let parsed: { event: string; data: unknown };
+        try { parsed = JSON.parse(typeof e.data === "string" ? e.data : ""); }
+        catch { return; }
+        const { event, data } = parsed;
 
-      // form_data_added: new form submission — prepend into state, zero re-fetch
-      source.addEventListener("form_data_added", (e: MessageEvent) => {
-        const data = JSON.parse(e.data) as { appId: string; formData: DbFormData };
-        if (data.appId !== appId) return;
-        setFormData(prev => {
-          if (prev.some(f => f.id === data.formData.id)) return prev; // dedupe
-          return [data.formData, ...prev]; // newest first
-        });
-      });
+        if (event === "device_updated") {
+          const device = data as DbDevice;
+          if (device.appId !== appId) return;
+          window.dispatchEvent(new CustomEvent("mrrobot:device_updated", { detail: { deviceId: device.deviceId } }));
+          setDevices(prev => {
+            const idx = prev.findIndex(d => d.deviceId === device.deviceId);
+            if (idx === -1) return [device, ...prev];
+            const next = [...prev];
+            next[idx] = device;
+            return next;
+          });
+          setSelectedDevice(sel => sel?.deviceId === device.deviceId ? device : sel);
+          const savedId = localStorage.getItem("mrrobot_device_id");
+          if (savedId === device.deviceId) setSelectedDevice(device);
+        } else if (event === "message_added") {
+          const payload = data as { appId: string; message: DbMessage };
+          if (payload.appId !== appId) return;
+          setMessages(prev => {
+            if (prev.some(m => m.id === payload.message.id)) return prev;
+            return [payload.message, ...prev];
+          });
+        } else if (event === "form_data_added") {
+          const payload = data as { appId: string; formData: DbFormData };
+          if (payload.appId !== appId) return;
+          setFormData(prev => {
+            if (prev.some(f => f.id === payload.formData.id)) return prev;
+            return [payload.formData, ...prev];
+          });
+        } else if (event === "form_data_deleted") {
+          const payload = data as { appId: string; id: number };
+          if (payload.appId !== appId) return;
+          setFormData(prev => prev.filter(f => f.id !== payload.id));
+        }
+      };
 
-      // form_data_deleted: entry removed — splice out by id, zero re-fetch
-      source.addEventListener("form_data_deleted", (e: MessageEvent) => {
-        const data = JSON.parse(e.data) as { appId: string; id: number };
-        if (data.appId !== appId) return;
-        setFormData(prev => prev.filter(f => f.id !== data.id));
-      });
-
-      // SSE error → browser auto-reconnects; no manual action needed
-      source.onerror = () => {};
+      ws.onclose = () => {
+        if (closed) return;
+        // exponential-ish backoff with cap
+        retryTimer = setTimeout(connect, 2000);
+      };
+      ws.onerror = () => { try { ws?.close(); } catch {} };
     }
 
-    attach(es);
+    connect();
     return () => {
-      es.close();
+      closed = true;
       if (retryTimer) clearTimeout(retryTimer);
+      try { ws?.close(); } catch {}
     };
   }, [authed, appId]);
 
