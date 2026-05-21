@@ -2122,6 +2122,7 @@ export default function WebDashboard() {
   const [checkAllResult, setCheckAllResult] = useState<{ ok: number; fail: number } | null>(null);
   const [filterRecent, setFilterRecent] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
   const [, liveTick] = useState(0); // global 1s tick — drives live timeAgo on all device cards
   useEffect(() => {
     const t = setInterval(() => liveTick(n => n + 1), 1000);
@@ -2212,12 +2213,18 @@ export default function WebDashboard() {
     let ws: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
+    let retryDelay = 2000;
 
     function connect() {
       if (closed) return;
       const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
       const url = `${proto}//${window.location.host}/api/events`;
       ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        setWsConnected(true);
+        retryDelay = 2000; // reset backoff on success
+      };
 
       ws.onmessage = (e) => {
         let parsed: { event: string; data: unknown };
@@ -2261,20 +2268,37 @@ export default function WebDashboard() {
       };
 
       ws.onclose = () => {
+        setWsConnected(false);
         if (closed) return;
-        // exponential-ish backoff with cap
-        retryTimer = setTimeout(connect, 2000);
+        // exponential backoff: 2s → 4s → 8s → cap 30s
+        retryTimer = setTimeout(connect, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 30000);
       };
-      ws.onerror = () => { try { ws?.close(); } catch {} };
+      ws.onerror = () => {
+        setWsConnected(false);
+        try { ws?.close(); } catch {}
+      };
     }
 
     connect();
     return () => {
       closed = true;
+      setWsConnected(false);
       if (retryTimer) clearTimeout(retryTimer);
       try { ws?.close(); } catch {}
     };
   }, [authed, appId]);
+
+  // Polling fallback — jab WebSocket connected nahi, har 20s mein data refresh karo
+  const wsConnectedRef = useRef(wsConnected);
+  useEffect(() => { wsConnectedRef.current = wsConnected; }, [wsConnected]);
+  useEffect(() => {
+    if (!authed) return;
+    const t = setInterval(() => {
+      if (!wsConnectedRef.current) void loadData(true);
+    }, 20000);
+    return () => clearInterval(t);
+  }, [authed, loadData]);
 
   async function handleManualRefresh() {
     setRefreshing(true);
@@ -2397,6 +2421,17 @@ export default function WebDashboard() {
                 /15m
               </span>
             </button>
+
+            {/* Live connection dot */}
+            <span
+              title={wsConnected ? "Live — real-time updates on" : "Polling — auto-refresh every 20s"}
+              style={{
+                width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                background: wsConnected ? "#22c55e" : "#f59e0b",
+                boxShadow: wsConnected ? "0 0 5px #22c55e88" : "0 0 5px #f59e0b88",
+                display: "inline-block",
+              }}
+            />
 
             {/* Manual Refresh button */}
             <button
