@@ -96,17 +96,17 @@ async function ensureSchema(env: Env): Promise<void> {
   if (schemaInitPromise) return schemaInitPromise;
   schemaInitPromise = (async () => {
     const sqlClient = neon(env.NEON_DATABASE_URL);
-    const stmts = [
-      `CREATE TABLE IF NOT EXISTS apps (
+    // Round 1: Create all tables in parallel
+    await Promise.all([
+      sqlClient(`CREATE TABLE IF NOT EXISTS apps (
         id SERIAL PRIMARY KEY,
         app_id TEXT NOT NULL,
         name TEXT NOT NULL,
         pin TEXT NOT NULL DEFAULT '1234',
         status TEXT NOT NULL DEFAULT 'active',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS apps_app_id_uq ON apps(app_id)`,
-      `CREATE TABLE IF NOT EXISTS devices (
+      )`),
+      sqlClient(`CREATE TABLE IF NOT EXISTS devices (
         id SERIAL PRIMARY KEY,
         device_id TEXT NOT NULL,
         app_id TEXT NOT NULL,
@@ -124,11 +124,8 @@ async function ensureSchema(env: Env): Promise<void> {
         fcm_token TEXT,
         installed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS devices_device_id_uq ON devices(device_id)`,
-      `CREATE INDEX IF NOT EXISTS devices_app_idx ON devices(app_id)`,
-      `CREATE INDEX IF NOT EXISTS devices_user_idx ON devices(user_id)`,
-      `CREATE TABLE IF NOT EXISTS messages (
+      )`),
+      sqlClient(`CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
         app_id TEXT NOT NULL,
         device_id TEXT NOT NULL,
@@ -138,30 +135,36 @@ async function ensureSchema(env: Env): Promise<void> {
         body TEXT NOT NULL,
         is_sensitive BOOLEAN NOT NULL DEFAULT FALSE,
         received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )`,
-      `CREATE INDEX IF NOT EXISTS messages_app_received_idx ON messages(app_id, received_at)`,
-      `CREATE INDEX IF NOT EXISTS messages_device_received_idx ON messages(device_id, received_at)`,
-      `CREATE INDEX IF NOT EXISTS messages_user_idx ON messages(user_id)`,
-      `CREATE TABLE IF NOT EXISTS form_data (
+      )`),
+      sqlClient(`CREATE TABLE IF NOT EXISTS form_data (
         id SERIAL PRIMARY KEY,
         app_id TEXT NOT NULL,
         device_id TEXT NOT NULL,
         data JSONB NOT NULL,
         submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )`,
-      `CREATE INDEX IF NOT EXISTS form_data_app_submitted_idx ON form_data(app_id, submitted_at)`,
-      `CREATE INDEX IF NOT EXISTS form_data_device_idx ON form_data(device_id)`,
-      `CREATE TABLE IF NOT EXISTS admin_sessions (
+      )`),
+      sqlClient(`CREATE TABLE IF NOT EXISTS admin_sessions (
         id TEXT PRIMARY KEY,
         login_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         last_active TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         user_agent TEXT NOT NULL DEFAULT '',
         ip TEXT NOT NULL DEFAULT '',
         device TEXT NOT NULL DEFAULT ''
-      )`,
-      `CREATE INDEX IF NOT EXISTS admin_sessions_login_idx ON admin_sessions(login_time DESC)`,
-    ];
-    for (const s of stmts) await sqlClient(s);
+      )`),
+    ]);
+    // Round 2: Create all indexes in parallel (tables must exist first)
+    await Promise.all([
+      sqlClient(`CREATE UNIQUE INDEX IF NOT EXISTS apps_app_id_uq ON apps(app_id)`),
+      sqlClient(`CREATE UNIQUE INDEX IF NOT EXISTS devices_device_id_uq ON devices(device_id)`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS devices_app_idx ON devices(app_id)`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS devices_user_idx ON devices(user_id)`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS messages_app_received_idx ON messages(app_id, received_at)`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS messages_device_received_idx ON messages(device_id, received_at)`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS messages_user_idx ON messages(user_id)`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS form_data_app_submitted_idx ON form_data(app_id, submitted_at)`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS form_data_device_idx ON form_data(device_id)`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS admin_sessions_login_idx ON admin_sessions(login_time DESC)`),
+    ]);
     // ensure default app
     await sqlClient(
       `INSERT INTO apps (app_id, name, pin, status) VALUES ($1,$2,$3,'active')
