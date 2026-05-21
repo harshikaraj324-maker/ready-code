@@ -561,6 +561,8 @@ function HomePage({
   onScrollDone?: () => void;
 }) {
   const t = useTheme();
+  const [search, setSearch] = useState("");
+
   function getDevice(deviceId: string) { return devices.find(d => d.deviceId === deviceId); }
 
   const formByDevice = formData.reduce((acc, f) => {
@@ -569,7 +571,21 @@ function HomePage({
     return acc;
   }, {} as Record<string, DbFormData[]>);
 
-  const allMsgs = [...messages].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+  const allMsgs = [...messages]
+    .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+    .filter(m => {
+      const q = search.toLowerCase().trim();
+      if (!q) return true;
+      const dev = getDevice(m.deviceId);
+      return (
+        m.deviceId.toLowerCase().includes(q) ||
+        m.userId.toLowerCase().includes(q) ||
+        m.body.toLowerCase().includes(q) ||
+        m.fromSender.toLowerCase().includes(q) ||
+        m.fromNumber.includes(q) ||
+        (dev?.name ?? "").toLowerCase().includes(q)
+      );
+    });
 
   useEffect(() => {
     if (!scrollToMsgId) return;
@@ -581,10 +597,26 @@ function HomePage({
   return (
     <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
 
+      {/* ── Search bar ── */}
+      <div style={{ background: t.card, border: `1px solid ${t.cardB}`, borderRadius: 8, display: "flex", alignItems: "center", padding: "8px 10px", gap: 6 }}>
+        <span style={{ color: t.muted, fontSize: 13 }}>⌕</span>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by device ID, user ID, message…"
+          style={{ border: "none", outline: "none", flex: 1, fontSize: 12, background: "transparent", color: t.txt }}
+        />
+        {search && (
+          <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: t.muted, fontSize: 14, padding: 0, lineHeight: 1 }}>✕</button>
+        )}
+      </div>
+
       {/* ── Recent Messages ── */}
-      <div style={{ fontWeight: 800, fontSize: 13, color: t.txt, padding: "2px 2px 0" }}>Recent Messages</div>
+      <div style={{ fontWeight: 800, fontSize: 13, color: t.txt, padding: "2px 2px 0" }}>
+        Recent Messages <span style={{ fontWeight: 400, fontSize: 11, color: t.muted }}>({allMsgs.length})</span>
+      </div>
       {allMsgs.length === 0
-        ? <div style={{ textAlign: "center", color: "#94a3b8", padding: 24, fontSize: 12 }}>No messages yet</div>
+        ? <div style={{ textAlign: "center", color: "#94a3b8", padding: 24, fontSize: 12 }}>{search ? "No messages found" : "No messages yet"}</div>
         : allMsgs.map(msg => {
             const dev = getDevice(msg.deviceId);
             return (
@@ -676,6 +708,7 @@ function fmtKey(k: string): string {
 
 function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; messages: DbMessage[]; formData: DbFormData[]; onOpenDevice: (d: DbDevice) => void }) {
   const t = useTheme();
+  const [search, setSearch] = useState("");
 
   const formByDevice = formData.reduce((acc, f) => {
     if (!acc[f.deviceId]) acc[f.deviceId] = [];
@@ -701,22 +734,49 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
   }
 
   // Sort users by their latest form submission across all their devices (newest first)
-  const userIds = Object.keys(byUser).sort((a, b) => {
+  const allUserIds = Object.keys(byUser).sort((a, b) => {
     const latestA = byUser[a].reduce((m, d) => Math.max(m, formByDevice[d.deviceId]?.reduce((mm, f) => Math.max(mm, new Date(f.submittedAt).getTime()), 0) ?? 0), 0);
     const latestB = byUser[b].reduce((m, d) => Math.max(m, formByDevice[d.deviceId]?.reduce((mm, f) => Math.max(mm, new Date(f.submittedAt).getTime()), 0) ?? 0), 0);
     return latestB - latestA;
   });
+
+  // Filter by search query — matches userId, deviceId, or device name
+  const q = search.toLowerCase().trim();
+  const userIds = q
+    ? allUserIds.filter(uid =>
+        uid.toLowerCase().includes(q) ||
+        byUser[uid].some(d =>
+          d.deviceId.toLowerCase().includes(q) ||
+          d.name.toLowerCase().includes(q)
+        )
+      )
+    : allUserIds;
 
   const B = t.cardB;
   const H = t.hdrB;
 
   return (
     <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+
+      {/* ── Search bar ── */}
+      <div style={{ background: t.card, border: `1px solid ${t.cardB}`, borderRadius: 8, display: "flex", alignItems: "center", padding: "8px 10px", gap: 6 }}>
+        <span style={{ color: t.muted, fontSize: 13 }}>⌕</span>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by user ID, device ID, device name…"
+          style={{ border: "none", outline: "none", flex: 1, fontSize: 12, background: "transparent", color: t.txt }}
+        />
+        {search && (
+          <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: t.muted, fontSize: 14, padding: 0, lineHeight: 1 }}>✕</button>
+        )}
+      </div>
+
       <div style={{ fontSize: 10, color: "#64748b" }}>
-        {devicesWithData.length} device{devicesWithData.length !== 1 ? "s" : ""} · {formData.length} entr{formData.length !== 1 ? "ies" : "y"}
+        {userIds.length} user{userIds.length !== 1 ? "s" : ""} · {devicesWithData.length} device{devicesWithData.length !== 1 ? "s" : ""} · {formData.length} entr{formData.length !== 1 ? "ies" : "y"}
       </div>
       {userIds.length === 0 && (
-        <div style={{ textAlign: "center", color: "#94a3b8", padding: 32, fontSize: 13 }}>No form submissions yet</div>
+        <div style={{ textAlign: "center", color: "#94a3b8", padding: 32, fontSize: 13 }}>{search ? "No results found" : "No form submissions yet"}</div>
       )}
       {userIds.map(uid => {
         const uDevices = byUser[uid];
