@@ -2390,8 +2390,9 @@ export default function WebDashboard() {
     <div style={{ height: "100dvh", background: theme.bg, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", color: theme.txt, display: "flex", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 440, height: "100dvh", display: "flex", flexDirection: "column", background: theme.bg }}>
 
-        {/* Header */}
-        <div style={{ background: theme.card, position: "sticky", top: 0, zIndex: 50, borderBottom: `1px solid ${theme.cardB}` }}>
+        {/* Header + Tab nav — single sticky block so tabs never overlap header */}
+        <div style={{ position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ background: theme.card, borderBottom: `1px solid ${theme.cardB}` }}>
         <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {/* Left: logo + name */}
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
@@ -2539,7 +2540,7 @@ export default function WebDashboard() {
         </div>
 
         {/* Tab nav */}
-        <div style={{ background: theme.hdr, display: "flex", borderBottom: `2px solid ${theme.cardB}`, position: "sticky", top: 44, zIndex: 49 }}>
+        <div style={{ background: theme.hdr, display: "flex", borderBottom: `2px solid ${theme.cardB}` }}>
           {NAV.map(({ key, label }) => {
             const active = page === key;
             return (
@@ -2556,6 +2557,7 @@ export default function WebDashboard() {
             );
           })}
         </div>
+        </div>{/* end sticky outer wrapper */}
 
         {/* Content */}
         {loading && (
