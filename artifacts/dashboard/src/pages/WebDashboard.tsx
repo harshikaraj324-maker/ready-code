@@ -889,7 +889,7 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
               const isLast = di === uDevices.length - 1;
 
               return (
-                <div key={device.deviceId} style={{ borderBottom: isLast ? "none" : `1px solid ${B}`, background: t.card }}>
+                <div key={device.deviceId} id={`device-card-${device.deviceId}`} style={{ borderBottom: isLast ? "none" : `1px solid ${B}`, background: t.card }}>
 
                   {/* Device sub-header */}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", borderBottom: `1px solid ${H}` }}>
@@ -2132,34 +2132,34 @@ export default function WebDashboard() {
 
   // Scroll state: track back vs forward navigation
   const goingBackRef = useRef(false);
-  const savedScrollRef = useRef<Record<string, number>>({});
+  const scrollAnchorRef = useRef<string | null>(null); // element ID to scroll into view on back
 
-  function saveScroll(key: string) {
-    const el = document.getElementById("main-scroll");
-    if (el) savedScrollRef.current[key] = el.scrollTop;
-  }
-
-  // Scroll to top on forward nav, restore exact position on back nav
+  // Scroll to top on forward nav, restore exact card position on back nav
   // Only depends on `page` — NOT selectedDevice — to avoid double-fire
   useEffect(() => {
     const el = document.getElementById("main-scroll");
     if (!el) return;
     if (goingBackRef.current) {
-      const saved = savedScrollRef.current[page] ?? 0;
+      const anchor = scrollAnchorRef.current;
       goingBackRef.current = false;
-      // Three-pass restore: immediate + after paint + after layout settles
-      el.scrollTop = saved;
-      requestAnimationFrame(() => {
-        el.scrollTop = saved;
-        setTimeout(() => { el.scrollTop = saved; }, 100);
-      });
+      scrollAnchorRef.current = null;
+      const restore = () => {
+        if (anchor) {
+          const target = document.getElementById(anchor);
+          if (target) { target.scrollIntoView({ block: "center" }); return; }
+        }
+        el.scrollTop = 0;
+      };
+      // Two-pass: after paint + after layout fully settles
+      requestAnimationFrame(() => { restore(); setTimeout(restore, 120); });
     } else {
       el.scrollTo({ top: 0, behavior: "instant" });
     }
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onOpenDevice(device: DbDevice, msgId?: string) {
-    saveScroll(page);
+    // Save the exact element ID to scroll back to on back nav
+    scrollAnchorRef.current = msgId ? `msg-${msgId}` : `device-card-${device.deviceId}`;
     setBackPage(page);
     localStorage.setItem("mrrobot_back_page", page);
     setSelectedDevice(device);
