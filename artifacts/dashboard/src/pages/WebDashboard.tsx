@@ -367,11 +367,11 @@ function PrimaryBtn({ state, idle, loading: ld, ok, onClick }: {
     <>
       <button onClick={onClick} disabled={state === "loading"} style={{
         width: "100%", padding: "12px 0", borderRadius: 10, border: "none",
-        background: state === "ok" ? "#22c55e" : state === "err" ? "#ef4444" : "#6366f1",
+        background: state === "ok" ? "#22c55e" : "#6366f1",
         color: "#fff", fontWeight: 700, fontSize: 14,
         cursor: state === "loading" ? "wait" : "pointer", marginTop: 2,
       }}>
-        {state === "loading" ? ld : state === "ok" ? ok : state === "err" ? "Retry" : idle}
+        {state === "loading" ? ld : state === "ok" ? ok : idle}
       </button>
       <SendProgressBar active={state === "loading"} />
     </>
@@ -397,10 +397,10 @@ function ActionPanel({ action, device, onClose }: { action: ActionKey; device: D
     return () => clearInterval(iv);
   }, [state, action]);
 
-  // Auto-timeout online_check after 30s
+  // Auto-timeout online_check after 30s — silently reset to idle
   useEffect(() => {
     if (state !== "loading" || action !== "online_check") return;
-    const t = setTimeout(() => setState("err"), 30000);
+    const t = setTimeout(() => setState("idle"), 30000);
     return () => clearTimeout(t);
   }, [state, action]);
 
@@ -426,8 +426,8 @@ function ActionPanel({ action, device, onClose }: { action: ActionKey; device: D
       if (action !== "online_check") {
         setState("ok"); setLog("");
       }
-    } catch (e) {
-      setState("err"); setLog((e as Error).message);
+    } catch {
+      setState("idle");
       clearTimeout(barTimer); setFcmBar(false);
     }
   }
@@ -454,11 +454,11 @@ function ActionPanel({ action, device, onClose }: { action: ActionKey; device: D
           <StatusLog state={state} log={log} />
           <button onClick={() => void send({ type: "0" })} disabled={state === "loading"} style={{
             width: "100%", padding: "12px 0", borderRadius: 10, border: "none",
-            background: state === "ok" ? "#22c55e" : state === "err" ? "#ef4444" : "#6366f1",
+            background: state === "ok" ? "#22c55e" : "#6366f1",
             color: "#fff", fontWeight: 700, fontSize: 14,
             cursor: state === "loading" ? "wait" : "pointer", marginTop: 2,
           }}>
-            {state === "loading" ? `Waiting… ${countdown}s` : state === "ok" ? "✓ Online" : state === "err" ? "No Response (Retry)" : "Ping Device"}
+            {state === "loading" ? `Waiting… ${countdown}s` : state === "ok" ? "✓ Online" : "Ping Device"}
           </button>
           {state === "loading" && (
             <div style={{ marginTop: 8, height: 5, borderRadius: 99, background: t.hdrB, overflow: "hidden" }}>
