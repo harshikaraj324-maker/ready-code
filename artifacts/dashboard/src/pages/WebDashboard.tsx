@@ -2437,16 +2437,13 @@ export default function WebDashboard() {
               </span>
             </button>
 
-            {/* Live connection dot */}
-            <span
-              title={wsConnected ? "Live — real-time updates on" : "Polling — auto-refresh every 20s"}
-              style={{
-                width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-                background: wsConnected ? "#22c55e" : "#f59e0b",
-                boxShadow: wsConnected ? "0 0 5px #22c55e88" : "0 0 5px #f59e0b88",
-                display: "inline-block",
-              }}
-            />
+            {/* Live connection status */}
+            <span style={{
+              fontSize: 10, fontWeight: 700, lineHeight: 1,
+              color: wsConnected ? "#22c55e" : "#ef4444",
+            }}>
+              {wsConnected ? "Connected" : "Disconnected"}
+            </span>
 
             {/* Manual Refresh button */}
             <button
