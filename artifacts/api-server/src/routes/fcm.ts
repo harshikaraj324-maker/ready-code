@@ -128,17 +128,11 @@ router.post("/fcm/send", async (req, res) => {
     const errorCode = body?.error?.details?.[0]?.errorCode;
     const msg = body?.error?.message;
     if (e.fcmStatus === 404 || errorCode === "UNREGISTERED") {
-      res.status(410).json({
-        error: "FCM token is no longer registered. Open the app on the device to refresh the token, then retry.",
-        detail: msg,
-      });
+      res.status(410).json({ error: "Device unreachable.", detail: msg });
       return;
     }
     if (e.fcmStatus === 400 && (msg?.includes("not a valid FCM registration token") || msg?.includes("INVALID_ARGUMENT"))) {
-      res.status(400).json({
-        error: "FCM token is invalid. Reinstall the app and wait for a fresh heartbeat, then retry.",
-        detail: msg,
-      });
+      res.status(400).json({ error: "Device unreachable.", detail: msg });
       return;
     }
     if (e.fcmStatus) { res.status(e.fcmStatus).json({ error: e.fcmBody }); return; }
