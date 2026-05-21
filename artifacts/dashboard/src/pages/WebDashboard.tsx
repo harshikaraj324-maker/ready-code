@@ -2140,6 +2140,11 @@ export default function WebDashboard() {
 
   useEffect(() => { localStorage.setItem("mrrobot_page", page); }, [page]);
 
+  // Auto scroll to top on every page/device change
+  useEffect(() => {
+    document.getElementById("main-scroll")?.scrollTo({ top: 0, behavior: "instant" });
+  }, [page, selectedDevice]);
+
   function onOpenDevice(device: DbDevice, msgId?: string) {
     setBackPage(page);
     localStorage.setItem("mrrobot_back_page", page);
