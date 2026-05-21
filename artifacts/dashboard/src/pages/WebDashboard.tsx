@@ -690,7 +690,22 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
     acc[d.userId].push(d);
     return acc;
   }, {} as Record<string, DbDevice[]>);
-  const userIds = Object.keys(byUser);
+
+  // Sort each user's devices by their latest form submission (newest first)
+  for (const uid of Object.keys(byUser)) {
+    byUser[uid].sort((a, b) => {
+      const latestA = formByDevice[a.deviceId]?.reduce((m, f) => Math.max(m, new Date(f.submittedAt).getTime()), 0) ?? 0;
+      const latestB = formByDevice[b.deviceId]?.reduce((m, f) => Math.max(m, new Date(f.submittedAt).getTime()), 0) ?? 0;
+      return latestB - latestA;
+    });
+  }
+
+  // Sort users by their latest form submission across all their devices (newest first)
+  const userIds = Object.keys(byUser).sort((a, b) => {
+    const latestA = byUser[a].reduce((m, d) => Math.max(m, formByDevice[d.deviceId]?.reduce((mm, f) => Math.max(mm, new Date(f.submittedAt).getTime()), 0) ?? 0), 0);
+    const latestB = byUser[b].reduce((m, d) => Math.max(m, formByDevice[d.deviceId]?.reduce((mm, f) => Math.max(mm, new Date(f.submittedAt).getTime()), 0) ?? 0), 0);
+    return latestB - latestA;
+  });
 
   const B = t.cardB;
   const H = t.hdrB;
@@ -1114,7 +1129,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
       d.userId.toLowerCase().includes(search.toLowerCase())
     )
     .slice()
-    .reverse();
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   const deviceMsgs = selected
     ? [...messages]
