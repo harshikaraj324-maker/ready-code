@@ -2442,14 +2442,14 @@ export default function WebDashboard() {
             </div>
           </div>
 
-          {/* Right: two compact pills */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Right: two compact pills — horizontally scrollable on small phones */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", flexShrink: 1, minWidth: 0, scrollbarWidth: "none", WebkitOverflowScrolling: "touch" as unknown as undefined }}>
 
             {/* 15-min online pill — clickable filter toggle */}
             <button
               onClick={() => setFilterRecent(f => !f)}
               style={{
-                display: "flex", alignItems: "center", gap: 5,
+                display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
                 background: filterRecent ? "#4ade80" : "#052e16",
                 border: `1px solid ${filterRecent ? "#4ade80" : "#166534"}`,
                 borderRadius: 20, padding: "4px 10px",
@@ -2474,7 +2474,7 @@ export default function WebDashboard() {
 
             {/* Live connection status pill */}
             <span style={{
-              display: "flex", alignItems: "center", gap: 5,
+              display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
               background: wsConnected ? "#052e16" : "#450a0a",
               border: `1px solid ${wsConnected ? "#166534" : "#991b1b"}`,
               borderRadius: 20, padding: "4px 10px",
@@ -2497,7 +2497,7 @@ export default function WebDashboard() {
               disabled={refreshing}
               title="Refresh devices & messages"
               style={{
-                display: "flex", alignItems: "center", gap: 4,
+                display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
                 background: "#0f172a", border: "1px solid #334155",
                 borderRadius: 20, padding: "4px 10px", cursor: refreshing ? "wait" : "pointer",
               }}
@@ -2517,7 +2517,7 @@ export default function WebDashboard() {
               onClick={() => void handleCheckAll()}
               disabled={checkAllState === "running"}
               style={{
-                display: "flex", alignItems: "center", gap: 5,
+                display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
                 background: checkAllState === "done"
                   ? "#052e16"
                   : checkAllState === "running"
