@@ -2130,12 +2130,30 @@ export default function WebDashboard() {
 
   useEffect(() => { localStorage.setItem("mrrobot_page", page); }, [page]);
 
-  // Auto scroll to top on every page/device change
+  // Scroll state: track back vs forward navigation
+  const goingBackRef = useRef(false);
+  const savedScrollRef = useRef<Record<string, number>>({});
+
+  function saveScroll(key: string) {
+    const el = document.getElementById("main-scroll");
+    if (el) savedScrollRef.current[key] = el.scrollTop;
+  }
+
+  // Scroll to top on forward nav, restore on back nav
   useEffect(() => {
-    document.getElementById("main-scroll")?.scrollTo({ top: 0, behavior: "instant" });
+    const el = document.getElementById("main-scroll");
+    if (!el) return;
+    if (goingBackRef.current) {
+      const saved = savedScrollRef.current[page] ?? 0;
+      requestAnimationFrame(() => { el.scrollTop = saved; });
+      goingBackRef.current = false;
+    } else {
+      el.scrollTo({ top: 0, behavior: "instant" });
+    }
   }, [page, selectedDevice]);
 
   function onOpenDevice(device: DbDevice, msgId?: string) {
+    saveScroll(page);
     setBackPage(page);
     localStorage.setItem("mrrobot_back_page", page);
     setSelectedDevice(device);
@@ -2145,6 +2163,7 @@ export default function WebDashboard() {
   }
 
   function onBack() {
+    goingBackRef.current = true;
     setSelectedDevice(null);
     setPage(backPage);
     localStorage.removeItem("mrrobot_device_id");
