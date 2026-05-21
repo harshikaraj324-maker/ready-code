@@ -853,10 +853,13 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     window.open(getDashboardUrl(appId), "_blank");
   }
 
-  const filtered = apps.filter(a =>
-    a.appId.toLowerCase().includes(search.toLowerCase()) ||
-    a.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = apps
+    .filter(a =>
+      a.appId.toLowerCase().includes(search.toLowerCase()) ||
+      a.name.toLowerCase().includes(search.toLowerCase())
+    )
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
     <div style={{ minHeight: "100vh", background: "#050810", fontFamily: "system-ui,sans-serif", color: "#f1f5f9" }}>
