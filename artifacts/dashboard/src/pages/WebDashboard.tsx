@@ -161,24 +161,33 @@ function isBankingMsg(body: string, sender: string): boolean {
 function ScrollToTopBtn() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const el = document.getElementById("main-scroll");
-    if (!el) return;
-    const onScroll = () => setVisible(el.scrollTop > 350);
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    let raf: number;
+    function attach(): boolean {
+      const el = document.getElementById("main-scroll");
+      if (!el) return false;
+      const onScroll = () => setVisible(el.scrollTop > 60);
+      el.addEventListener("scroll", onScroll, { passive: true });
+      setVisible(el.scrollTop > 60);
+      return true;
+    }
+    if (!attach()) {
+      raf = requestAnimationFrame(() => attach());
+    }
+    return () => cancelAnimationFrame(raf);
   }, []);
-  if (!visible) return null;
   return (
     <button
       onClick={() => document.getElementById("main-scroll")?.scrollTo({ top: 0, behavior: "smooth" })}
       title="Scroll to top"
       style={{
-        position: "fixed", bottom: 72, right: 16, zIndex: 999,
+        position: "fixed", bottom: 72, right: 16, zIndex: 9999,
         width: 38, height: 38, borderRadius: "50%",
         background: "#6366f1", border: "none", color: "#fff",
         fontSize: 20, fontWeight: 700, cursor: "pointer",
         boxShadow: "0 3px 10px rgba(99,102,241,0.45)",
-        display: "flex", alignItems: "center", justifyContent: "center",
+        display: visible ? "flex" : "none",
+        alignItems: "center", justifyContent: "center",
+        opacity: visible ? 1 : 0,
         transition: "opacity 0.2s",
       }}
     >↑</button>
