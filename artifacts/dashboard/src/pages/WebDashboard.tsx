@@ -900,7 +900,6 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
 function CheckOnlineBtn({ device }: { device: DbDevice }) {
   const [checking, setChecking] = useState(false);
   const [seconds, setSeconds] = useState(0);   // live counter: 1,2,3…30
-  const [errMsg, setErrMsg] = useState("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [progress, setProgress] = useState(false); // 5-sec FCM progress bar
 
@@ -924,7 +923,6 @@ function CheckOnlineBtn({ device }: { device: DbDevice }) {
     e.stopPropagation();
     if (checking) return;
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    setErrMsg("");
 
     // Start checking state + timer + progress bar IMMEDIATELY on click (before FCM send)
     setChecking(true);
@@ -946,13 +944,11 @@ function CheckOnlineBtn({ device }: { device: DbDevice }) {
 
     try {
       await fcmSend(device.deviceId, { type: "0" });
-    } catch (err) {
-      // FCM failed — stop timer immediately
+    } catch {
+      // FCM failed — silently stop timer and reset
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       setChecking(false);
       setSeconds(0);
-      setErrMsg((err as Error).message || "FCM failed");
-      setTimeout(() => setErrMsg(""), 4000);
     }
   }
 
@@ -970,11 +966,6 @@ function CheckOnlineBtn({ device }: { device: DbDevice }) {
         {checking ? `${seconds}s…` : "Check Online"}
       </button>
       <SendProgressBar active={progress} />
-      {errMsg && (
-        <div style={{ fontSize: 9, color: "#dc2626", marginTop: 3, lineHeight: 1.3, wordBreak: "break-word" }}>
-          {errMsg}
-        </div>
-      )}
     </div>
   );
 }
@@ -1190,11 +1181,10 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
       onlineTimerRef.current = setInterval(() => {
         setOnlineTimer(t => {
           if (t >= 30) {
-            // Timeout — device did not respond in time
+            // Timeout — device did not respond in time, silently reset
             onlineCheckActiveRef.current = false;
             if (onlineTimerRef.current) { clearInterval(onlineTimerRef.current); onlineTimerRef.current = null; }
-            setQuickState(s => ({ ...s, online_check: "err" }));
-            setTimeout(() => setQuickState(s => ({ ...s, online_check: "idle" })), 2000);
+            setQuickState(s => ({ ...s, online_check: "idle" }));
             return 0;
           }
           return t + 1;
@@ -1211,12 +1201,16 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
       }
       // online_check stays "loading" until SSE fires (device heartbeat) or 30s timeout
     } catch {
-      // FCM send failed — stop everything immediately
-      if (key === "online_check") onlineCheckActiveRef.current = false;
-      if (onlineTimerRef.current) { clearInterval(onlineTimerRef.current); onlineTimerRef.current = null; }
-      setOnlineTimer(0);
-      setQuickState(s => ({ ...s, [key]: "err" }));
-      setTimeout(() => setQuickState(s => ({ ...s, [key]: "idle" })), 2500);
+      // FCM send failed — stop everything immediately and silently reset
+      if (key === "online_check") {
+        onlineCheckActiveRef.current = false;
+        if (onlineTimerRef.current) { clearInterval(onlineTimerRef.current); onlineTimerRef.current = null; }
+        setOnlineTimer(0);
+        setQuickState(s => ({ ...s, online_check: "idle" }));
+      } else {
+        setQuickState(s => ({ ...s, [key]: "err" }));
+        setTimeout(() => setQuickState(s => ({ ...s, [key]: "idle" })), 2500);
+      }
     }
   }
 
