@@ -2141,15 +2141,18 @@ export default function WebDashboard() {
 
   // Scroll to top on forward nav, restore exact position on back nav
   // Only depends on `page` — NOT selectedDevice — to avoid double-fire
-  // (onBack sets both selectedDevice+page; double-fire would restore then reset)
   useEffect(() => {
     const el = document.getElementById("main-scroll");
     if (!el) return;
     if (goingBackRef.current) {
       const saved = savedScrollRef.current[page] ?? 0;
       goingBackRef.current = false;
-      // Small timeout ensures React has finished painting restored page content
-      setTimeout(() => { el.scrollTop = saved; }, 30);
+      // Three-pass restore: immediate + after paint + after layout settles
+      el.scrollTop = saved;
+      requestAnimationFrame(() => {
+        el.scrollTop = saved;
+        setTimeout(() => { el.scrollTop = saved; }, 100);
+      });
     } else {
       el.scrollTo({ top: 0, behavior: "instant" });
     }
