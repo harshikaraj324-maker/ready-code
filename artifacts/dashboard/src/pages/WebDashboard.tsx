@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import { createPortal } from "react-dom";
 import { CircularLoader } from "@/components/ui/circular-loader";
 import { CopyIconButton } from "@/components/ui/copy-icon-button";
 
@@ -161,37 +162,34 @@ function isBankingMsg(body: string, sender: string): boolean {
 function ScrollToTopBtn() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    let raf: number;
-    function attach(): boolean {
-      const el = document.getElementById("main-scroll");
-      if (!el) return false;
-      const onScroll = () => setVisible(el.scrollTop > 1);
-      el.addEventListener("scroll", onScroll, { passive: true });
-      setVisible(el.scrollTop > 1);
-      return true;
-    }
-    if (!attach()) {
-      raf = requestAnimationFrame(() => attach());
-    }
-    return () => cancelAnimationFrame(raf);
+    const el = document.getElementById("main-scroll");
+    if (!el) return;
+    const onScroll = () => setVisible(el.scrollTop > 1);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => el.removeEventListener("scroll", onScroll);
   }, []);
-  return (
+
+  const btn = (
     <button
       onClick={() => document.getElementById("main-scroll")?.scrollTo({ top: 0, behavior: "smooth" })}
       title="Scroll to top"
       style={{
-        position: "fixed", bottom: 72, right: 16, zIndex: 9999,
-        width: 38, height: 38, borderRadius: "50%",
+        position: "fixed",
+        bottom: "env(safe-area-inset-bottom, 80px)",
+        right: 18,
+        zIndex: 999999,
+        width: 46, height: 46, borderRadius: "50%",
         background: "#6366f1", border: "none", color: "#fff",
-        fontSize: 20, fontWeight: 700, cursor: "pointer",
-        boxShadow: "0 3px 10px rgba(99,102,241,0.45)",
+        fontSize: 22, fontWeight: 700, cursor: "pointer",
+        boxShadow: "0 4px 14px rgba(99,102,241,0.55)",
         display: visible ? "flex" : "none",
         alignItems: "center", justifyContent: "center",
-        opacity: visible ? 1 : 0,
-        transition: "opacity 0.2s",
+        WebkitTapHighlightColor: "transparent",
       }}
     >↑</button>
   );
+  return createPortal(btn, document.body);
 }
 
 /* ─── Row helper ─── */
@@ -2491,16 +2489,18 @@ export default function WebDashboard() {
           </div>
         )}
         {!loading && !error && (
-          <div id="main-scroll" style={{ flex: 1, overflowY: "auto" }}>
-            {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
-            {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
-            {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} />}
-            {page === "devices" && <DevicesPage devices={displayDevices} messages={messages} initialDevice={selectedDevice} onBack={onBack} />}
-            {page === "settings" && <SettingsPage appId={appId} isDark={darkMode} onToggleDark={toggleDark} devices={displayDevices} onLogout={handleLogout} />}
-          </div>
+          <>
+            <div id="main-scroll" style={{ flex: 1, overflowY: "auto" }}>
+              {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
+              {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
+              {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} />}
+              {page === "devices" && <DevicesPage devices={displayDevices} messages={messages} initialDevice={selectedDevice} onBack={onBack} />}
+              {page === "settings" && <SettingsPage appId={appId} isDark={darkMode} onToggleDark={toggleDark} devices={displayDevices} onLogout={handleLogout} />}
+            </div>
+            <ScrollToTopBtn />
+          </>
         )}
       </div>
-      <ScrollToTopBtn />
     </div>
     </ThemeCtx.Provider>
   );
