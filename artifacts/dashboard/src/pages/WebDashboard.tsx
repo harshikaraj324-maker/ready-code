@@ -124,7 +124,8 @@ function useInfiniteScroll<T>(items: T[], pageSize = 20, initialCount?: number, 
   }, [pageSize]);
   // Report count changes from external (initialCount updates)
   useEffect(() => { onCountChangeRef.current?.(count); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length, loading };
+  const resetCount = useCallback((n: number) => { setCount(n); onCountChangeRef.current?.(n); }, []);
+  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length, loading, resetCount };
 }
 
 async function fcmSend(deviceId: string, data: Record<string, string>): Promise<string> {
@@ -808,7 +809,7 @@ function fmtKey(k: string): string {
   return k.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; messages: DbMessage[]; formData: DbFormData[]; onOpenDevice: (d: DbDevice) => void }) {
+function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChange }: { devices: DbDevice[]; messages: DbMessage[]; formData: DbFormData[]; onOpenDevice: (d: DbDevice) => void; initialCount?: number; onCountChange?: (n: number) => void }) {
   const t = useTheme();
   const [search, setSearch] = useState("");
 
@@ -854,7 +855,7 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
       )
     : allUserIds;
 
-  const { visible: visibleUsers, sentinelRef: userSentinel, loading: usersLoading } = useInfiniteScroll(userIds, 15);
+  const { visible: visibleUsers, sentinelRef: userSentinel, loading: usersLoading } = useInfiniteScroll(userIds, 15, initialCount, onCountChange);
 
   const B = t.cardB;
   const H = t.hdrB;
@@ -1161,7 +1162,7 @@ function AdminUpdatePanel({ device }: { device: DbDevice }) {
   );
 }
 
-function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: DbDevice[]; messages: DbMessage[]; initialDevice?: DbDevice | null; onBack?: () => void }) {
+function DevicesPage({ devices, messages, initialDevice, onBack, initialCount, onCountChange }: { devices: DbDevice[]; messages: DbMessage[]; initialDevice?: DbDevice | null; onBack?: () => void; initialCount?: number; onCountChange?: (n: number) => void }) {
   const t = useTheme();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<DbDevice | null>(initialDevice ?? null);
@@ -1211,6 +1212,9 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
   // Ref for selected deviceId — always up-to-date, no stale closure issues
   const selectedDeviceIdRef = useRef<string | null>(null);
   selectedDeviceIdRef.current = selected?.deviceId ?? null; // sync update every render
+  // Internal nav: save scroll + count before opening device detail (list → detail → back to list)
+  const internalScrollRef = useRef(0);
+  const internalCountRef = useRef(20);
 
   // Ref: true ONLY when we are actively waiting for an Online Check response
   // Prevents regular heartbeats from resetting the timer unintentionally
@@ -1289,7 +1293,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
     .slice()
     .sort((a, b) => new Date(b.installedAt).getTime() - new Date(a.installedAt).getTime());
 
-  const { visible: visibleDevices, sentinelRef: devSentinel, loading: devsLoading } = useInfiniteScroll(filtered, 20);
+  const { visible: visibleDevices, sentinelRef: devSentinel, loading: devsLoading, resetCount: resetDeviceCount } = useInfiniteScroll(filtered, 20, initialCount, onCountChange);
 
   const deviceMsgs = selected
     ? [...messages]
@@ -1315,7 +1319,24 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
   if (selected) {
     return (
       <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-        <button onClick={() => { setSelected(null); setActiveAction(null); localStorage.removeItem("mrrobot_device_id"); if (fromExternal && onBack) onBack(); }} style={{
+        <button onClick={() => {
+          setSelected(null); setActiveAction(null); localStorage.removeItem("mrrobot_device_id");
+          if (fromExternal && onBack) {
+            onBack();
+          } else {
+            resetDeviceCount(internalCountRef.current);
+            const savedTop = internalScrollRef.current;
+            const scrollEl = document.getElementById("main-scroll");
+            if (scrollEl) {
+              let attempts = 0;
+              const tryRestore = () => {
+                scrollEl.scrollTop = savedTop;
+                if (Math.abs(scrollEl.scrollTop - savedTop) > 10 && attempts < 50) { attempts++; setTimeout(tryRestore, 50); }
+              };
+              requestAnimationFrame(tryRestore);
+            }
+          }
+        }} style={{
           alignSelf: "flex-start", background: t.card, border: `1px solid ${t.cardB}`,
           borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer", color: t.muted,
         }}>
@@ -1534,7 +1555,12 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
             { label: "User ID", value: device.userId, mono: true },
           ];
           return (
-            <div key={device.deviceId} onClick={() => { setSelected(device); setFromExternal(false); localStorage.setItem("mrrobot_device_id", device.deviceId); }}
+            <div key={device.deviceId} onClick={() => {
+              const scrollEl = document.getElementById("main-scroll");
+              internalScrollRef.current = scrollEl?.scrollTop ?? 0;
+              internalCountRef.current = visibleDevices.length;
+              setSelected(device); setFromExternal(false); localStorage.setItem("mrrobot_device_id", device.deviceId);
+            }}
               style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden" }}>
 
               {/* Card header */}
@@ -2152,6 +2178,8 @@ export default function WebDashboard() {
   const savedScrollTopRef = useRef(0); // pixel scrollTop saved on forward nav, restored on back
   const homeMsgCountRef = useRef(20);  // how many items HomePage had when user navigated away
   const msgPageCountRef = useRef(20);  // how many items MessagesPage had when user navigated away
+  const groupsCountRef = useRef(15);   // how many group items GroupsPage had when user navigated away
+  const devicesCountRef = useRef(20);  // how many device items DevicesPage had when user navigated away
 
   // Scroll to top on forward nav, restore exact scrollTop on back nav
   // Only depends on `page` — NOT selectedDevice — to avoid double-fire
@@ -2167,7 +2195,7 @@ export default function WebDashboard() {
       const tryRestore = () => {
         el.scrollTop = savedTop;
         // If scroll didn't land (content not tall enough yet), retry
-        if (Math.abs(el.scrollTop - savedTop) > 10 && attempts < 20) {
+        if (Math.abs(el.scrollTop - savedTop) > 10 && attempts < 50) {
           attempts++;
           setTimeout(tryRestore, 50);
         }
@@ -2576,8 +2604,8 @@ export default function WebDashboard() {
             <div id="main-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, overscrollBehavior: "contain" }}>
               {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={homeMsgCountRef.current} onCountChange={n => { homeMsgCountRef.current = n; }} />}
               {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={msgPageCountRef.current} onCountChange={n => { msgPageCountRef.current = n; }} />}
-              {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} />}
-              {page === "devices" && <DevicesPage devices={displayDevices} messages={messages} initialDevice={selectedDevice} onBack={onBack} />}
+              {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} initialCount={groupsCountRef.current} onCountChange={n => { groupsCountRef.current = n; }} />}
+              {page === "devices" && <DevicesPage devices={displayDevices} messages={messages} initialDevice={selectedDevice} onBack={onBack} initialCount={devicesCountRef.current} onCountChange={n => { devicesCountRef.current = n; }} />}
               {page === "settings" && <SettingsPage appId={appId} isDark={darkMode} onToggleDark={toggleDark} devices={displayDevices} onLogout={handleLogout} />}
             </div>
             <ScrollToTopBtn />
