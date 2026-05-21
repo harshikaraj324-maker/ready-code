@@ -2336,10 +2336,6 @@ export default function WebDashboard() {
             </svg>
             <div>
               <div style={{ color: theme.txt, fontWeight: 900, fontSize: 13, letterSpacing: 1 }}>{appName}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ color: theme.muted, fontSize: 8, fontFamily: "monospace" }}>{appId}</div>
-                <CopyIconButton value={appId} size={20} color="#6366f1" title="Copy App ID" />
-              </div>
             </div>
           </div>
 
