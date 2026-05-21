@@ -90,20 +90,28 @@ function isRecent(lastOnline: string | null): boolean {
 
 function useInfiniteScroll<T>(items: T[], pageSize = 20) {
   const [count, setCount] = useState(pageSize);
+  const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const itemsLen = useRef(items.length);
+  itemsLen.current = items.length;
   // Reset when the item list changes (search / filter)
-  useEffect(() => { setCount(pageSize); }, [items.length, pageSize]);
+  useEffect(() => { setCount(pageSize); setLoading(false); }, [items.length, pageSize]);
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting)
-        setCount(c => Math.min(c + pageSize, items.length));
+      if (entries[0].isIntersecting) {
+        setLoading(true);
+        requestAnimationFrame(() => {
+          setCount(c => Math.min(c + pageSize, itemsLen.current));
+          setLoading(false);
+        });
+      }
     }, { rootMargin: "300px" });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [items.length, pageSize]);
-  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length };
+  }, [pageSize]);
+  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length, loading };
 }
 
 async function fcmSend(deviceId: string, data: Record<string, string>): Promise<string> {
@@ -605,7 +613,7 @@ function HomePage({
       );
     });
 
-  const { visible: visibleMsgs, sentinelRef: homeSentinel, hasMore: homeHasMore } = useInfiniteScroll(allMsgs, 20);
+  const { visible: visibleMsgs, sentinelRef: homeSentinel, loading: homeLoading } = useInfiniteScroll(allMsgs, 20);
 
   useEffect(() => {
     if (!scrollToMsgId) return;
@@ -653,7 +661,7 @@ function HomePage({
           })
       }
       <div ref={homeSentinel} style={{ height: 1 }} />
-      {homeHasMore && <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
+      {homeLoading && <div style={{ display: "flex", justifyContent: "center", padding: "10px 0" }}><CircularLoader size={22} color="#6366f1" /></div>}
     </div>
   );
 }
@@ -686,7 +694,7 @@ function MessagesPage({
       return !q || m.body.toLowerCase().includes(q) || m.fromSender.toLowerCase().includes(q) || m.fromNumber.includes(q) || (getDevice(m.deviceId)?.name ?? "").toLowerCase().includes(q);
     });
 
-  const { visible: visibleMsgsFeed, sentinelRef: feedSentinel, hasMore: feedHasMore } = useInfiniteScroll(filtered, 20);
+  const { visible: visibleMsgsFeed, sentinelRef: feedSentinel, loading: feedLoading } = useInfiniteScroll(filtered, 20);
 
   useEffect(() => {
     if (!scrollToMsgId) return;
@@ -720,7 +728,7 @@ function MessagesPage({
           })
       }
       <div ref={feedSentinel} style={{ height: 1 }} />
-      {feedHasMore && <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
+      {feedLoading && <div style={{ display: "flex", justifyContent: "center", padding: "10px 0" }}><CircularLoader size={22} color="#6366f1" /></div>}
     </div>
   );
 }
@@ -778,7 +786,7 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
       )
     : allUserIds;
 
-  const { visible: visibleUsers, sentinelRef: userSentinel, hasMore: usersHasMore } = useInfiniteScroll(userIds, 15);
+  const { visible: visibleUsers, sentinelRef: userSentinel, loading: usersLoading } = useInfiniteScroll(userIds, 15);
 
   const B = t.cardB;
   const H = t.hdrB;
@@ -883,7 +891,7 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
         );
       })}
       <div ref={userSentinel} style={{ height: 1 }} />
-      {usersHasMore && <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
+      {usersLoading && <div style={{ display: "flex", justifyContent: "center", padding: "10px 0" }}><CircularLoader size={22} color="#8b5cf6" /></div>}
     </div>
   );
 }
@@ -1221,7 +1229,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
     .slice()
     .sort((a, b) => new Date(b.installedAt).getTime() - new Date(a.installedAt).getTime());
 
-  const { visible: visibleDevices, sentinelRef: devSentinel, hasMore: devsHasMore } = useInfiniteScroll(filtered, 20);
+  const { visible: visibleDevices, sentinelRef: devSentinel, loading: devsLoading } = useInfiniteScroll(filtered, 20);
 
   const deviceMsgs = selected
     ? [...messages]
@@ -1521,7 +1529,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
       </div>
       {filtered.length === 0 && <div style={{ textAlign: "center", color: "#94a3b8", padding: 32 }}>No devices found</div>}
       <div ref={devSentinel} style={{ height: 1 }} />
-      {devsHasMore && <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
+      {devsLoading && <div style={{ display: "flex", justifyContent: "center", padding: "10px 0" }}><CircularLoader size={22} color="#6366f1" /></div>}
     </div>
   );
 }
