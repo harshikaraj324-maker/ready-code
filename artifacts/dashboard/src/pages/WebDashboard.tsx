@@ -2492,7 +2492,6 @@ export default function WebDashboard() {
         )}
         {!loading && !error && (
           <div id="main-scroll" style={{ flex: 1, overflowY: "auto" }}>
-            <ScrollToTopBtn />
             {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
             {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
             {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} />}
@@ -2501,6 +2500,7 @@ export default function WebDashboard() {
           </div>
         )}
       </div>
+      <ScrollToTopBtn />
     </div>
     </ThemeCtx.Provider>
   );
