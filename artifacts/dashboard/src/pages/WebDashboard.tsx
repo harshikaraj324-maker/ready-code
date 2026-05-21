@@ -1208,8 +1208,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
         setOnlineTimer(0);
         setQuickState(s => ({ ...s, online_check: "idle" }));
       } else {
-        setQuickState(s => ({ ...s, [key]: "err" }));
-        setTimeout(() => setQuickState(s => ({ ...s, [key]: "idle" })), 2500);
+        setQuickState(s => ({ ...s, [key]: "idle" }));
       }
     }
   }
@@ -1348,12 +1347,13 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
 
             if (isQuick) {
               const isLoading = qs === "loading";
-              const bgColor = qs === "ok" ? "#22c55e" : qs === "err" ? "#ef4444" : isLoading ? "#6366f1" : t.card;
-              const bdColor = qs === "ok" ? "#22c55e" : qs === "err" ? "#ef4444" : isLoading ? "#6366f1" : t.cardB;
-              const txtColor = qs !== "idle" ? "#fff" : t.txt2;
+              const isOk = qs === "ok";
+              const bgColor = isOk ? "#22c55e" : isLoading ? "#6366f1" : t.card;
+              const bdColor = isOk ? "#22c55e" : isLoading ? "#6366f1" : t.cardB;
+              const txtColor = (isOk || isLoading) ? "#fff" : t.txt2;
               const btnLabel = isLoading
                 ? (key === "online_check" ? `${onlineTimer}s…` : "Requesting…")
-                : qs === "ok" ? "Sent ✓" : qs === "err" ? "Failed ✗" : label;
+                : isOk ? "Sent ✓" : label;
               return (
                 <div key={key} style={{ display: "flex", flexDirection: "column" }}>
                   <button
@@ -1699,8 +1699,8 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
             disabled={numState === "running" || devices.length === 0}
             style={{
               width: "100%", padding: "12px 0", borderRadius: 9, border: "none",
-              background: numState === "done" ? "#22c55e" : numState === "err" ? "#ef4444" : numState === "running" ? "#ede9fe" : adminNum.length === 10 ? "#6366f1" : t.hdrB,
-              color: numState === "done" || numState === "err" || adminNum.length === 10 ? "#fff" : numState === "running" ? "#6366f1" : t.muted,
+              background: numState === "done" ? "#22c55e" : numState === "running" ? "#ede9fe" : adminNum.length === 10 ? "#6366f1" : t.hdrB,
+              color: numState === "done" || adminNum.length === 10 ? "#fff" : numState === "running" ? "#6366f1" : t.muted,
               fontWeight: 700, fontSize: 14,
               cursor: numState === "running" || devices.length === 0 ? "not-allowed" : adminNum.length < 10 && numState === "idle" ? "not-allowed" : "pointer",
               transition: "background 0.15s",
@@ -1709,7 +1709,6 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
             {numState === "running"
               ? `Sending ${updateDone}/${devices.length}…`
               : numState === "done" ? "Done ✓"
-              : numState === "err" ? "Failed ✗"
               : devices.length === 0 ? "No Devices"
               : "Update"}
           </button>
