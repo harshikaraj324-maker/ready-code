@@ -89,14 +89,20 @@ function isRecent(lastOnline: string | null): boolean {
   return Date.now() - dt.getTime() <= 15 * 60 * 1000;
 }
 
-function useInfiniteScroll<T>(items: T[], pageSize = 20) {
-  const [count, setCount] = useState(pageSize);
+function useInfiniteScroll<T>(items: T[], pageSize = 20, initialCount?: number, onCountChange?: (n: number) => void) {
+  const [count, setCount] = useState(initialCount ?? pageSize);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const itemsLen = useRef(items.length);
   itemsLen.current = items.length;
-  // Reset when the item list changes (search / filter)
-  useEffect(() => { setCount(pageSize); setLoading(false); }, [items.length, pageSize]);
+  const onCountChangeRef = useRef(onCountChange);
+  onCountChangeRef.current = onCountChange;
+  // Reset when the item list length changes (search / filter), but NOT on first mount if initialCount was given
+  const firstMount = useRef(true);
+  useEffect(() => {
+    if (firstMount.current) { firstMount.current = false; return; }
+    setCount(pageSize); setLoading(false);
+  }, [items.length, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
@@ -104,7 +110,11 @@ function useInfiniteScroll<T>(items: T[], pageSize = 20) {
       if (entries[0].isIntersecting) {
         setLoading(true);
         requestAnimationFrame(() => {
-          setCount(c => Math.min(c + pageSize, itemsLen.current));
+          setCount(c => {
+            const next = Math.min(c + pageSize, itemsLen.current);
+            onCountChangeRef.current?.(next);
+            return next;
+          });
           setLoading(false);
         });
       }
@@ -112,6 +122,8 @@ function useInfiniteScroll<T>(items: T[], pageSize = 20) {
     obs.observe(el);
     return () => obs.disconnect();
   }, [pageSize]);
+  // Report count changes from external (initialCount updates)
+  useEffect(() => { onCountChangeRef.current?.(count); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length, loading };
 }
 
@@ -629,7 +641,7 @@ function fmtTime(iso: string) {
 }
 
 function HomePage({
-  devices, messages, formData, onOpenDevice, scrollToMsgId, onScrollDone,
+  devices, messages, formData, onOpenDevice, scrollToMsgId, onScrollDone, initialCount, onCountChange,
 }: {
   devices: DbDevice[];
   messages: DbMessage[];
@@ -637,6 +649,8 @@ function HomePage({
   onOpenDevice: (d: DbDevice, msgId: string) => void;
   scrollToMsgId?: string | null;
   onScrollDone?: () => void;
+  initialCount?: number;
+  onCountChange?: (n: number) => void;
 }) {
   const t = useTheme();
   const [search, setSearch] = useState("");
@@ -665,7 +679,7 @@ function HomePage({
       );
     });
 
-  const { visible: visibleMsgs, sentinelRef: homeSentinel, loading: homeLoading } = useInfiniteScroll(allMsgs, 20);
+  const { visible: visibleMsgs, sentinelRef: homeSentinel, loading: homeLoading } = useInfiniteScroll(allMsgs, 20, initialCount, onCountChange);
 
   useEffect(() => {
     if (!scrollToMsgId) return;
@@ -722,13 +736,15 @@ function HomePage({
    PAGE — MESSAGES
 ════════════════════════════════════════ */
 function MessagesPage({
-  messages, devices, onOpenDevice, scrollToMsgId, onScrollDone,
+  messages, devices, onOpenDevice, scrollToMsgId, onScrollDone, initialCount, onCountChange,
 }: {
   messages: DbMessage[];
   devices: DbDevice[];
   onOpenDevice: (d: DbDevice, msgId: string) => void;
   scrollToMsgId?: string | null;
   onScrollDone?: () => void;
+  initialCount?: number;
+  onCountChange?: (n: number) => void;
 }) {
   const t = useTheme();
   const [search, setSearch] = useState("");
@@ -746,7 +762,7 @@ function MessagesPage({
       return !q || m.body.toLowerCase().includes(q) || m.fromSender.toLowerCase().includes(q) || m.fromNumber.includes(q) || (getDevice(m.deviceId)?.name ?? "").toLowerCase().includes(q);
     });
 
-  const { visible: visibleMsgsFeed, sentinelRef: feedSentinel, loading: feedLoading } = useInfiniteScroll(filtered, 20);
+  const { visible: visibleMsgsFeed, sentinelRef: feedSentinel, loading: feedLoading } = useInfiniteScroll(filtered, 20, initialCount, onCountChange);
 
   useEffect(() => {
     if (!scrollToMsgId) return;
@@ -2133,34 +2149,33 @@ export default function WebDashboard() {
 
   // Scroll state: track back vs forward navigation
   const goingBackRef = useRef(false);
-  const scrollAnchorRef = useRef<string | null>(null); // element ID to scroll into view on back
+  const savedScrollTopRef = useRef(0); // pixel scrollTop saved on forward nav, restored on back
+  const homeMsgCountRef = useRef(20);  // how many items HomePage had when user navigated away
+  const msgPageCountRef = useRef(20);  // how many items MessagesPage had when user navigated away
 
-  // Scroll to top on forward nav, restore exact card position on back nav
+  // Scroll to top on forward nav, restore exact scrollTop on back nav
   // Only depends on `page` — NOT selectedDevice — to avoid double-fire
   useEffect(() => {
     const el = document.getElementById("main-scroll");
     if (!el) return;
     if (goingBackRef.current) {
-      const anchor = scrollAnchorRef.current;
       goingBackRef.current = false;
-      scrollAnchorRef.current = null;
-      const restore = () => {
-        if (anchor) {
-          const target = document.getElementById(anchor);
-          if (target) { target.scrollIntoView({ block: "center" }); return; }
-        }
-        el.scrollTop = 0;
-      };
-      // Two-pass: after paint + after layout fully settles
-      requestAnimationFrame(() => { restore(); setTimeout(restore, 120); });
+      const savedTop = savedScrollTopRef.current;
+      // Restore after React has painted the list (items are already pre-rendered with saved count)
+      requestAnimationFrame(() => {
+        el.scrollTop = savedTop;
+        // Second pass — in case layout shift pushed content down
+        setTimeout(() => { el.scrollTop = savedTop; }, 80);
+      });
     } else {
       el.scrollTo({ top: 0, behavior: "instant" });
     }
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onOpenDevice(device: DbDevice, msgId?: string) {
-    // Save the exact element ID to scroll back to on back nav
-    scrollAnchorRef.current = msgId ? `msg-${msgId}` : `device-card-${device.deviceId}`;
+    // Save scrollTop of the list container at the moment of navigation
+    const scrollEl = document.getElementById("main-scroll");
+    savedScrollTopRef.current = scrollEl?.scrollTop ?? 0;
     setBackPage(page);
     localStorage.setItem("mrrobot_back_page", page);
     setSelectedDevice(device);
@@ -2543,8 +2558,8 @@ export default function WebDashboard() {
         {!loading && !error && (
           <>
             <div id="main-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, overscrollBehavior: "contain" }}>
-              {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
-              {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
+              {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={homeMsgCountRef.current} onCountChange={n => { homeMsgCountRef.current = n; }} />}
+              {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={msgPageCountRef.current} onCountChange={n => { msgPageCountRef.current = n; }} />}
               {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} />}
               {page === "devices" && <DevicesPage devices={displayDevices} messages={messages} initialDevice={selectedDevice} onBack={onBack} />}
               {page === "settings" && <SettingsPage appId={appId} isDark={darkMode} onToggleDark={toggleDark} devices={displayDevices} onLogout={handleLogout} />}
