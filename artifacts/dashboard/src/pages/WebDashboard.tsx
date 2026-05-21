@@ -2034,12 +2034,14 @@ export default function WebDashboard() {
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
-      const h: HeadersInit | undefined = silent ? { "x-silent": "1" } : undefined;
+      const h: HeadersInit = silent ? { "x-silent": "1" } : {};
       const [dRes, mRes, fRes] = await Promise.all([
-        fetch(`/api/devices?appId=${appId}`, { headers: h }),
-        fetch(`/api/messages?appId=${appId}`, { headers: h }),
-        fetch(`/api/data?appId=${appId}`, { headers: h }),
+        fetch(`/api/devices?appId=${appId}`, { headers: h, signal: controller.signal }),
+        fetch(`/api/messages?appId=${appId}`, { headers: h, signal: controller.signal }),
+        fetch(`/api/data?appId=${appId}`, { headers: h, signal: controller.signal }),
       ]);
       if (!dRes.ok || !mRes.ok) throw new Error("API error");
       const [d, m, f] = await Promise.all([dRes.json(), mRes.json(), fRes.ok ? fRes.json() : []]) as [DbDevice[], DbMessage[], DbFormData[]];
@@ -2050,12 +2052,14 @@ export default function WebDashboard() {
         const found = (d as DbDevice[]).find(dev => dev.deviceId === savedDeviceId);
         if (found) setSelectedDevice(found);
       }
-    } catch (e) { if (!silent) setError((e as Error).message); }
-    finally { if (!silent) setLoading(false); }
+    } catch (e) {
+      if (!silent) setError(controller.signal.aborted ? "Connection timed out. Tap Sync to retry." : (e as Error).message);
+    }
+    finally { clearTimeout(timeout); if (!silent) setLoading(false); }
   }, [appId]);
 
-  // Initial load
-  useEffect(() => { void loadData(false); }, [loadData]);
+  // Load data only after authenticated — avoids showing spinner on cold-start before login
+  useEffect(() => { if (authed) void loadData(false); }, [authed, loadData]);
 
   // WebSocket — complete live connection via Cloudflare Durable Object pub-sub
   // Server pushes full device/message objects → client merges directly into state
