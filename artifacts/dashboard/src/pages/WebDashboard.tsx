@@ -2443,12 +2443,23 @@ export default function WebDashboard() {
               </span>
             </button>
 
-            {/* Live connection status */}
+            {/* Live connection status pill */}
             <span style={{
-              fontSize: 10, fontWeight: 700, lineHeight: 1,
-              color: wsConnected ? "#22c55e" : "#ef4444",
+              display: "flex", alignItems: "center", gap: 5,
+              background: wsConnected ? "#052e16" : "#450a0a",
+              border: `1px solid ${wsConnected ? "#166534" : "#991b1b"}`,
+              borderRadius: 20, padding: "4px 10px",
+              transition: "all 0.15s",
             }}>
-              {wsConnected ? "Connected" : "Disconnected"}
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                background: wsConnected ? "#4ade80" : "#f87171",
+                boxShadow: wsConnected ? "0 0 6px #4ade80" : "0 0 6px #f87171",
+                display: "inline-block",
+              }} />
+              <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1, color: wsConnected ? "#4ade80" : "#f87171" }}>
+                {wsConnected ? "Connected" : "Disconnected"}
+              </span>
             </span>
 
             {/* Manual Refresh button */}
