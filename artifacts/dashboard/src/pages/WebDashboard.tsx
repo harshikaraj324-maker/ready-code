@@ -1147,7 +1147,6 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
   }, [devices]); // eslint-disable-line react-hooks/exhaustive-deps
   const [msgSearch, setMsgSearch] = useState("");
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
-  const [showAdminUpdate, setShowAdminUpdate] = useState(false);
   const [quickState, setQuickState] = useState<Record<string, "idle"|"loading"|"ok"|"err">>({});
   const [quickProgress, setQuickProgress] = useState<Record<string, boolean>>({}); // 5s FCM progress bar
   const [onlineTimer, setOnlineTimer] = useState(0); // live countdown for online_check
@@ -1290,19 +1289,6 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
                 {selected.status === "uninstalled" ? "Uninstalled" : timeAgo(selected.lastOnline)}
               </div>
             </div>
-            <button
-              onClick={() => setShowAdminUpdate(v => !v)}
-              style={{
-                padding: "6px 11px", borderRadius: 7, border: "1.5px solid",
-                borderColor: showAdminUpdate ? "#6366f1" : t.cardB,
-                background: showAdminUpdate ? "#6366f1" : t.bg,
-                color: showAdminUpdate ? "#fff" : t.muted,
-                fontWeight: 700, fontSize: 11, cursor: "pointer",
-                transition: "all 0.15s", whiteSpace: "nowrap" as const,
-              }}
-            >
-              Update
-            </button>
           </div>
         </div>
 
@@ -1441,9 +1427,6 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
 
         {/* Inline action panel */}
         {activeAction && <ActionPanel action={activeAction} device={selected} onClose={() => setActiveAction(null)} />}
-
-        {/* Admin Update — shown only when toggled */}
-        {showAdminUpdate && <AdminUpdatePanel device={selected} />}
 
         {/* Messages */}
         <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
