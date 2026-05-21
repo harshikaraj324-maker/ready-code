@@ -245,7 +245,7 @@ function MsgCard({
 
         {/* Body */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 6 }}>
-          <div style={{ flex: 1, fontSize: 13, color: isBankingMsg(msg.body, msg.fromSender) ? "#16a34a" : t.txt, fontWeight: isBankingMsg(msg.body, msg.fromSender) ? 600 : 400, lineHeight: 1.55, wordBreak: "break-word" }}>{msg.body}</div>
+          <div style={{ flex: 1, fontSize: 13, color: isBankingMsg(msg.body, msg.fromSender) ? "#16a34a" : t.txt, lineHeight: 1.55, wordBreak: "break-word" }}>{msg.body}</div>
           <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
         </div>
 
@@ -1487,7 +1487,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
                   <span style={{ fontSize: 10, color: t.muted }}>{fmtDate(msg.receivedAt)}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}>
-                  <div style={{ flex: 1, fontSize: 12, color: isBankingMsg(msg.body, msg.fromSender) ? "#16a34a" : t.txt, fontWeight: isBankingMsg(msg.body, msg.fromSender) ? 600 : 400, lineHeight: 1.5, wordBreak: "break-word" }}>{msg.body}</div>
+                  <div style={{ flex: 1, fontSize: 12, color: isBankingMsg(msg.body, msg.fromSender) ? "#16a34a" : t.txt, lineHeight: 1.5, wordBreak: "break-word" }}>{msg.body}</div>
                   <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
                 </div>
                 <div style={{ display: "flex", gap: 10, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
