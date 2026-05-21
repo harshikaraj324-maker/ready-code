@@ -92,18 +92,27 @@ async function fcmSend(fcmToken: string, deviceId: string, data: Record<string, 
 
 function useInfiniteScroll<T>(items: T[], pageSize = 10) {
   const [count, setCount] = useState(pageSize);
+  const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { setCount(pageSize); }, [items.length, pageSize]);
+  const itemsLen = useRef(items.length);
+  itemsLen.current = items.length;
+  useEffect(() => { setCount(pageSize); setLoading(false); }, [items.length, pageSize]);
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) setCount(c => Math.min(c + pageSize, items.length));
+      if (entries[0].isIntersecting) {
+        setLoading(true);
+        requestAnimationFrame(() => {
+          setCount(c => Math.min(c + pageSize, itemsLen.current));
+          setLoading(false);
+        });
+      }
     }, { rootMargin: "300px" });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [items.length, pageSize]);
-  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length };
+  }, [pageSize]);
+  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length, loading };
 }
 
 function isRecent(lastOnline: string | null | undefined): boolean {
@@ -877,7 +886,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const { visible: visibleApps, sentinelRef: appSentinel, hasMore: appsHasMore } = useInfiniteScroll(filtered, 10);
+  const { visible: visibleApps, sentinelRef: appSentinel, loading: appsLoading } = useInfiniteScroll(filtered, 10);
 
   return (
     <div style={{ minHeight: "100vh", background: "#050810", fontFamily: "system-ui,sans-serif", color: "#f1f5f9" }}>
@@ -998,7 +1007,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           ))
         )}
       <div ref={appSentinel} style={{ height: 1 }} />
-      {appsHasMore && <div style={{ textAlign: "center", color: "#475569", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
+      {appsLoading && <div style={{ display: "flex", justifyContent: "center", padding: "10px 0" }}><CircularLoader size={22} color="#f59e0b" /></div>}
       </div>
 
       {/* Create/Edit Modal */}
