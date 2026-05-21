@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CircularLoader } from "@/components/ui/circular-loader";
 import { CopyIconButton } from "@/components/ui/copy-icon-button";
 
@@ -88,6 +88,22 @@ async function fcmSend(fcmToken: string, deviceId: string, data: Record<string, 
   const body = await res.json() as Record<string, unknown>;
   if (!res.ok) throw new Error(String((body["error"] as Record<string, unknown>)?.["message"] ?? body["error"] ?? "FCM failed"));
   return String(body["messageId"] ?? "sent");
+}
+
+function useInfiniteScroll<T>(items: T[], pageSize = 10) {
+  const [count, setCount] = useState(pageSize);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setCount(pageSize); }, [items.length, pageSize]);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) setCount(c => Math.min(c + pageSize, items.length));
+    }, { rootMargin: "300px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [items.length, pageSize]);
+  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length };
 }
 
 function isRecent(lastOnline: string | null | undefined): boolean {
@@ -861,6 +877,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+  const { visible: visibleApps, sentinelRef: appSentinel, hasMore: appsHasMore } = useInfiniteScroll(filtered, 10);
+
   return (
     <div style={{ minHeight: "100vh", background: "#050810", fontFamily: "system-ui,sans-serif", color: "#f1f5f9" }}>
 
@@ -919,7 +937,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </button>
           </div>
         ) : (
-          filtered.map(app => (
+          visibleApps.map(app => (
             <div key={app.appId} style={{ background: "#0f172a", borderRadius: 12, border: `1px solid ${app.status === "active" ? "#1e3a5f" : "#2d1a1a"}`, overflow: "hidden" }}>
 
               {/* Card header */}
@@ -979,6 +997,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </div>
           ))
         )}
+      <div ref={appSentinel} style={{ height: 1 }} />
+      {appsHasMore && <div style={{ textAlign: "center", color: "#475569", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
       </div>
 
       {/* Create/Edit Modal */}
