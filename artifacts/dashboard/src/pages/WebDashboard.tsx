@@ -2161,12 +2161,18 @@ export default function WebDashboard() {
     if (goingBackRef.current) {
       goingBackRef.current = false;
       const savedTop = savedScrollTopRef.current;
-      // Restore after React has painted the list (items are already pre-rendered with saved count)
-      requestAnimationFrame(() => {
+      // Keep retrying until scrollHeight is tall enough to hold savedTop
+      // Needed for large lists (2000+ items) where layout settles slowly
+      let attempts = 0;
+      const tryRestore = () => {
         el.scrollTop = savedTop;
-        // Second pass — in case layout shift pushed content down
-        setTimeout(() => { el.scrollTop = savedTop; }, 80);
-      });
+        // If scroll didn't land (content not tall enough yet), retry
+        if (Math.abs(el.scrollTop - savedTop) > 10 && attempts < 20) {
+          attempts++;
+          setTimeout(tryRestore, 50);
+        }
+      };
+      requestAnimationFrame(tryRestore);
     } else {
       el.scrollTo({ top: 0, behavior: "instant" });
     }
