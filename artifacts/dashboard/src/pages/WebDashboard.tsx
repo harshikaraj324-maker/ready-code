@@ -162,7 +162,13 @@ function isBankingMsg(body: string, sender: string): boolean {
 function ScrollToTopBtn() {
   const btn = (
     <button
-      onClick={() => document.getElementById("main-scroll")?.scrollTo({ top: 0, behavior: "smooth" })}
+      onClick={() => {
+        const el = document.getElementById("main-scroll");
+        if (el) { el.scrollTop = 0; }
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }}
       title="Scroll to top"
       style={{
         position: "fixed",
