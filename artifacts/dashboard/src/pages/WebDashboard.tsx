@@ -160,30 +160,20 @@ function isBankingMsg(body: string, sender: string): boolean {
 
 /* ─── Scroll-to-top floating button ─── */
 function ScrollToTopBtn() {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = document.getElementById("main-scroll");
-    if (!el) return;
-    const onScroll = () => setVisible(el.scrollTop > 1);
-    el.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-
   const btn = (
     <button
       onClick={() => document.getElementById("main-scroll")?.scrollTo({ top: 0, behavior: "smooth" })}
       title="Scroll to top"
       style={{
         position: "fixed",
-        bottom: "env(safe-area-inset-bottom, 80px)",
+        bottom: 80,
         right: 18,
         zIndex: 999999,
         width: 46, height: 46, borderRadius: "50%",
         background: "#6366f1", border: "none", color: "#fff",
         fontSize: 22, fontWeight: 700, cursor: "pointer",
         boxShadow: "0 4px 14px rgba(99,102,241,0.55)",
-        display: visible ? "flex" : "none",
+        display: "flex",
         alignItems: "center", justifyContent: "center",
         WebkitTapHighlightColor: "transparent",
       }}
