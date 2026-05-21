@@ -165,9 +165,9 @@ function ScrollToTopBtn() {
     function attach(): boolean {
       const el = document.getElementById("main-scroll");
       if (!el) return false;
-      const onScroll = () => setVisible(el.scrollTop > 60);
+      const onScroll = () => setVisible(el.scrollTop > 1);
       el.addEventListener("scroll", onScroll, { passive: true });
-      setVisible(el.scrollTop > 60);
+      setVisible(el.scrollTop > 1);
       return true;
     }
     if (!attach()) {
