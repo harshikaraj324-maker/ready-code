@@ -1189,7 +1189,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
       d.userId.toLowerCase().includes(search.toLowerCase())
     )
     .slice()
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    .sort((a, b) => new Date(b.installedAt).getTime() - new Date(a.installedAt).getTime());
 
   const deviceMsgs = selected
     ? [...messages]
