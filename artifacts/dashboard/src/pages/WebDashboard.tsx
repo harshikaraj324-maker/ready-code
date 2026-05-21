@@ -2336,8 +2336,8 @@ export default function WebDashboard() {
 
   return (
     <ThemeCtx.Provider value={theme}>
-    <div style={{ minHeight: "100vh", background: theme.bg, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", color: theme.txt, display: "flex", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: 440, minHeight: "100vh", display: "flex", flexDirection: "column", background: theme.bg }}>
+    <div style={{ height: "100%", background: theme.bg, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", color: theme.txt, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: 440, height: "100%", display: "flex", flexDirection: "column", background: theme.bg }}>
 
         {/* Header */}
         <div style={{ background: theme.card, position: "sticky", top: 0, zIndex: 50, borderBottom: `1px solid ${theme.cardB}` }}>
@@ -2501,7 +2501,7 @@ export default function WebDashboard() {
         )}
         {!loading && !error && (
           <>
-            <div id="main-scroll" style={{ flex: 1, overflowY: "auto" }}>
+            <div id="main-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
               {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
               {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} />}
               {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} />}
