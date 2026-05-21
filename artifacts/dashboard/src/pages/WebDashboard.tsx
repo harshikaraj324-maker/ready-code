@@ -88,6 +88,24 @@ function isRecent(lastOnline: string | null): boolean {
   return Date.now() - dt.getTime() <= 15 * 60 * 1000;
 }
 
+function useInfiniteScroll<T>(items: T[], pageSize = 20) {
+  const [count, setCount] = useState(pageSize);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  // Reset when the item list changes (search / filter)
+  useEffect(() => { setCount(pageSize); }, [items.length, pageSize]);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting)
+        setCount(c => Math.min(c + pageSize, items.length));
+    }, { rootMargin: "300px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [items.length, pageSize]);
+  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length };
+}
+
 async function fcmSend(deviceId: string, data: Record<string, string>): Promise<string> {
   const res = await fetch("/api/fcm/send", {
     method: "POST",
@@ -587,6 +605,8 @@ function HomePage({
       );
     });
 
+  const { visible: visibleMsgs, sentinelRef: homeSentinel, hasMore: homeHasMore } = useInfiniteScroll(allMsgs, 20);
+
   useEffect(() => {
     if (!scrollToMsgId) return;
     const el = document.getElementById(`msg-${scrollToMsgId}`);
@@ -617,7 +637,7 @@ function HomePage({
       </div>
       {allMsgs.length === 0
         ? <div style={{ textAlign: "center", color: "#94a3b8", padding: 24, fontSize: 12 }}>{search ? "No messages found" : "No messages yet"}</div>
-        : allMsgs.map(msg => {
+        : visibleMsgs.map(msg => {
             const dev = getDevice(msg.deviceId);
             return (
               <MsgCard
@@ -632,6 +652,8 @@ function HomePage({
             );
           })
       }
+      <div ref={homeSentinel} style={{ height: 1 }} />
+      {homeHasMore && <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
     </div>
   );
 }
@@ -664,6 +686,8 @@ function MessagesPage({
       return !q || m.body.toLowerCase().includes(q) || m.fromSender.toLowerCase().includes(q) || m.fromNumber.includes(q) || (getDevice(m.deviceId)?.name ?? "").toLowerCase().includes(q);
     });
 
+  const { visible: visibleMsgsFeed, sentinelRef: feedSentinel, hasMore: feedHasMore } = useInfiniteScroll(filtered, 20);
+
   useEffect(() => {
     if (!scrollToMsgId) return;
     const el = document.getElementById(`msg-${scrollToMsgId}`);
@@ -690,11 +714,13 @@ function MessagesPage({
       <div style={{ fontSize: 11, color: t.muted }}>{filtered.length} messages</div>
       {filtered.length === 0
         ? <div style={{ textAlign: "center", color: "#94a3b8", padding: 32, fontSize: 13 }}>No messages found</div>
-        : filtered.map(msg => {
+        : visibleMsgsFeed.map(msg => {
             const dev = getDevice(msg.deviceId);
             return <MsgCard key={msg.id} msg={msg} deviceName={dev?.name ?? msg.deviceId} device={dev} onOpen={onOpenDevice} cardClickable />;
           })
       }
+      <div ref={feedSentinel} style={{ height: 1 }} />
+      {feedHasMore && <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
     </div>
   );
 }
@@ -752,6 +778,8 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
       )
     : allUserIds;
 
+  const { visible: visibleUsers, sentinelRef: userSentinel, hasMore: usersHasMore } = useInfiniteScroll(userIds, 15);
+
   const B = t.cardB;
   const H = t.hdrB;
 
@@ -778,7 +806,7 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
       {userIds.length === 0 && (
         <div style={{ textAlign: "center", color: "#94a3b8", padding: 32, fontSize: 13 }}>{search ? "No results found" : "No form submissions yet"}</div>
       )}
-      {userIds.map(uid => {
+      {visibleUsers.map(uid => {
         const uDevices = byUser[uid];
         const totalEntries = uDevices.reduce((s, d) => s + (formByDevice[d.deviceId]?.length ?? 0), 0);
         return (
@@ -854,6 +882,8 @@ function GroupsPage({ devices, formData, onOpenDevice }: { devices: DbDevice[]; 
           </div>
         );
       })}
+      <div ref={userSentinel} style={{ height: 1 }} />
+      {usersHasMore && <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
     </div>
   );
 }
@@ -1191,6 +1221,8 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
     .slice()
     .sort((a, b) => new Date(b.installedAt).getTime() - new Date(a.installedAt).getTime());
 
+  const { visible: visibleDevices, sentinelRef: devSentinel, hasMore: devsHasMore } = useInfiniteScroll(filtered, 20);
+
   const deviceMsgs = selected
     ? [...messages]
         .filter(m => m.deviceId === selected.deviceId)
@@ -1439,7 +1471,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "start" }}>
-        {filtered.map((device, idx) => {
+        {visibleDevices.map((device, idx) => {
           const recent = device.status !== "uninstalled" && isRecent(device.lastOnline);
           const rows = [
             { label: "ID", value: device.deviceId, mono: true },
@@ -1488,6 +1520,8 @@ function DevicesPage({ devices, messages, initialDevice, onBack }: { devices: Db
         })}
       </div>
       {filtered.length === 0 && <div style={{ textAlign: "center", color: "#94a3b8", padding: 32 }}>No devices found</div>}
+      <div ref={devSentinel} style={{ height: 1 }} />
+      {devsHasMore && <div style={{ textAlign: "center", color: "#64748b", fontSize: 11, padding: "8px 0" }}>Loading more…</div>}
     </div>
   );
 }
