@@ -1771,37 +1771,6 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
         </div>
       </div>
 
-      {/* ── Contact Developer ── */}
-      <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
-        <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.hdrB}`, fontSize: 12, fontWeight: 700, color: t.txt2 }}>Contact Developer</div>
-        <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-          <a href={`https://t.me/${DEVELOPER_TELEGRAM.replace("@", "")}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "block" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: isDark ? "#0c2035" : "#f0f9ff", borderRadius: 9, border: `1px solid ${isDark ? "#1e4060" : "#bae6fd"}` }}>
-              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#0088cc", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>TG</span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: "#0ea5e9" }}>Telegram</div>
-                <div style={{ fontSize: 13, color: "#0088cc", fontWeight: 600, marginTop: 1 }}>{DEVELOPER_TELEGRAM}</div>
-              </div>
-              <span style={{ color: "#0088cc", fontSize: 16 }}>→</span>
-            </div>
-          </a>
-          <a href={`https://wa.me/${DEVELOPER_WHATSAPP.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "block" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: isDark ? "#0b2016" : "#f0fdf4", borderRadius: 9, border: `1px solid ${isDark ? "#1a4030" : "#bbf7d0"}` }}>
-              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#25d366", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ color: "#fff", fontWeight: 800, fontSize: 12 }}>WA</span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: "#16a34a" }}>WhatsApp</div>
-                <div style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, marginTop: 1 }}>{DEVELOPER_WHATSAPP}</div>
-              </div>
-              <span style={{ color: "#16a34a", fontSize: 16 }}>→</span>
-            </div>
-          </a>
-        </div>
-      </div>
-
       {/* ── App Info ── */}
       <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
         <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.hdrB}`, fontSize: 12, fontWeight: 700, color: t.txt2 }}>App Info</div>
