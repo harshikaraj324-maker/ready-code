@@ -129,14 +129,14 @@ router.post("/fcm/send", async (req, res) => {
     const msg = body?.error?.message;
     if (e.fcmStatus === 404 || errorCode === "UNREGISTERED") {
       res.status(410).json({
-        error: "Phone ka FCM token purana ho gaya. Device pe app open karo — naya token automatically register ho jayega, fir command dobara bhejo.",
+        error: "FCM token is no longer registered. Open the app on the device to refresh the token, then retry.",
         detail: msg,
       });
       return;
     }
     if (e.fcmStatus === 400 && (msg?.includes("not a valid FCM registration token") || msg?.includes("INVALID_ARGUMENT"))) {
       res.status(400).json({
-        error: "FCM token invalid — Android app ko reinstall karo aur fresh heartbeat bhejo. Token Firebase project se match nahi karta.",
+        error: "FCM token is invalid. Reinstall the app and wait for a fresh heartbeat, then retry.",
         detail: msg,
       });
       return;
