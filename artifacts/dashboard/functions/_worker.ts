@@ -640,10 +640,13 @@ app.post("/api/register", async (c) => {
     return c.json({ error: "appId, deviceId and name are required" }, 400);
   }
   const safeAppId = String(body.appId);
-  // Block registration if admin has not pre-created this appId
+  // Block registration if admin has not pre-created this appId, or if app is disabled
   const existing = await db.select().from(apps).where(eq(apps.appId, safeAppId)).limit(1);
   if (existing.length === 0) {
     return c.json({ error: "App not authorized. Admin must create this App ID first." }, 403);
+  }
+  if (existing[0].status !== "active") {
+    return c.json({ error: "App is disabled. Contact admin to activate." }, 403);
   }
   const uid = String(body.userId ?? `USR-${String(body.deviceId).slice(-6).toUpperCase()}`);
   const { row, created } = await upsertDeviceRaw(c.env, {
