@@ -2438,7 +2438,7 @@ export default function WebDashboard() {
               <rect x="21" y="22" width="3" height="4" rx="1" fill="#6366f1"/>
             </svg>
             <div>
-              <div style={{ color: theme.txt, fontWeight: 900, fontSize: 13, letterSpacing: 1 }}>{appName}</div>
+              <div style={{ color: theme.txt, fontWeight: 900, fontSize: 13, letterSpacing: 1, whiteSpace: "nowrap" }}>{appName}</div>
             </div>
           </div>
 
