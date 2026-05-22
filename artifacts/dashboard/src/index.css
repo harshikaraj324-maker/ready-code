@@ -30,6 +30,11 @@ body {
   animation: circLoaderSpin 0.9s linear infinite;
   transform-origin: 50% 50%;
 }
+
+/* Header horizontal scrollbar — thin + indigo colored */
+.header-scroll::-webkit-scrollbar { height: 3px; }
+.header-scroll::-webkit-scrollbar-track { background: transparent; }
+.header-scroll::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 99px; }
 @media (prefers-reduced-motion: reduce) {
   .circ-loader-spin { animation-duration: 3s; }
 }
