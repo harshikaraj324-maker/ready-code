@@ -1869,6 +1869,11 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
               {sessions.length}
             </div>
           </div>
+          {sessions.length > 0 && (
+            <button onClick={() => void logoutAll()} style={{ background: "#fef2f2", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 7, padding: "4px 10px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+              Logout All
+            </button>
+          )}
         </div>
         {sessLoading
           ? <div style={{ padding: 20, display: "flex", justifyContent: "center" }}><CircularLoader size={28} color="#6366f1" labelColor="#94a3b8" /></div>
@@ -1897,6 +1902,12 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
                         Login: {fmtTime(s.loginTime)} · IP: {s.ip.slice(0, 15)}
                       </div>
                     </div>
+                    <button onClick={() => void logoutSession(s.id)} style={{
+                      background: "#fef2f2", color: "#ef4444", border: "1px solid #fecaca",
+                      borderRadius: 7, padding: "5px 10px", fontSize: 10, fontWeight: 700, cursor: "pointer", flexShrink: 0,
+                    }}>
+                      Logout
+                    </button>
                   </div>
                 );
               })
