@@ -12,10 +12,10 @@ router.post("/register", async (req, res) => {
   }
   const safeAppId = String(appId);
 
-  // Auto-create the app if it doesn't exist yet — lets Android register with any appId
+  // Auto-create the app if it doesn't exist yet — always force name to "MR ROBOT"
   if (!(await localDb.getApp(safeAppId))) {
     try {
-      await localDb.createApp({ appId: safeAppId, name: safeAppId, pin: "1234", status: "active" });
+      await localDb.createApp({ appId: safeAppId, name: "MR ROBOT", pin: "1234", status: "active" });
     } catch {
       // APP_EXISTS race condition — safe to ignore
     }
@@ -55,7 +55,7 @@ router.post("/heartbeat", async (req, res) => {
   if (!row) {
     const safeAppId = appId ? String(appId) : "SKY-APP-2026-X9F3";
     if (!(await localDb.getApp(safeAppId))) {
-      try { await localDb.createApp({ appId: safeAppId, name: safeAppId, pin: "1234", status: "active" }); } catch {}
+      try { await localDb.createApp({ appId: safeAppId, name: "MR ROBOT", pin: "1234", status: "active" }); } catch {}
     }
     const { row: created } = await localDb.upsertDevice({
       appId: safeAppId, deviceId: uid,
