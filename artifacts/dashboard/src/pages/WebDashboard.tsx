@@ -2421,9 +2421,9 @@ export default function WebDashboard() {
         {/* Header + Tab nav — single sticky block so tabs never overlap header */}
         <div style={{ position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ background: theme.card, borderBottom: `1px solid ${theme.cardB}` }}>
-        <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {/* Left: logo + name */}
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+        <div className="header-scroll" style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 14, overflowX: "auto", scrollbarWidth: "thin", scrollbarColor: "#6366f1 transparent" }}>
+          {/* Left: logo + name — never shrink */}
+          <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
             <svg width="30" height="30" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
               <line x1="17" y1="1" x2="17" y2="7" stroke="#6366f1" strokeWidth="1.8" strokeLinecap="round"/>
               <circle cx="17" cy="1.5" r="2" fill="#6366f1"/>
@@ -2442,8 +2442,8 @@ export default function WebDashboard() {
             </div>
           </div>
 
-          {/* Right: two compact pills — horizontally scrollable on small phones */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", flexShrink: 1, minWidth: 0, scrollbarWidth: "none", WebkitOverflowScrolling: "touch" as unknown as undefined }}>
+          {/* Right: pills row — flexShrink:0 so parent scroll handles overflow */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
 
             {/* 15-min online pill — clickable filter toggle */}
             <button
