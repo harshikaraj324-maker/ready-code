@@ -535,7 +535,7 @@ function AppModal({ app, onClose, onCreated }: {
             <label style={LS}>Status</label>
             <select value={status} onChange={e => setStatus(e.target.value)} style={IS()}>
               <option value="active">Active</option>
-              <option value="inactive">Disabled</option>
+              <option value="disabled">Disabled</option>
             </select>
           </div>
           {err && <div style={{ color: "#f87171", fontSize: 12, fontWeight: 600 }}>{err}</div>}
