@@ -43,8 +43,9 @@ router.get("/apps/:appId", async (req, res) => {
 router.post("/apps", async (req, res) => {
   const { appId, name, pin, status } = req.body as { appId?: string; name?: string; pin?: string; status?: string };
   if (!appId || !name) { res.status(400).json({ error: "appId and name are required" }); return; }
+  if (name.trim() !== "MR ROBOT") { res.status(400).json({ error: "App name must be 'MR ROBOT'" }); return; }
   try {
-    const row = await localDb.createApp({ appId, name, pin, status });
+    const row = await localDb.createApp({ appId, name: "MR ROBOT", pin, status });
     res.status(201).json(row);
   } catch (err) {
     if ((err as Error).message === "APP_EXISTS") { res.status(409).json({ error: "App ID already exists" }); return; }
