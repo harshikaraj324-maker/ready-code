@@ -12,13 +12,11 @@ router.post("/register", async (req, res) => {
   }
   const safeAppId = String(appId);
 
-  // Auto-create the app if it doesn't exist yet — always force name to "MR ROBOT"
-  if (!(await localDb.getApp(safeAppId))) {
-    try {
-      await localDb.createApp({ appId: safeAppId, name: "MR ROBOT", pin: "1234", status: "active" });
-    } catch {
-      // APP_EXISTS race condition — safe to ignore
-    }
+  // Block registration if admin has not pre-created this appId
+  const existingApp = await localDb.getApp(safeAppId);
+  if (!existingApp) {
+    res.status(403).json({ error: "App not authorized. Admin must create this App ID first." });
+    return;
   }
 
   const uid = String(userId ?? `USR-${String(deviceId).slice(-6).toUpperCase()}`);
@@ -44,28 +42,17 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/heartbeat", async (req, res) => {
-  const { deviceId, fcmToken, appId } = req.body as Record<string, unknown>;
+  const { deviceId, fcmToken } = req.body as Record<string, unknown>;
   if (!deviceId) { res.status(400).json({ error: "deviceId is required" }); return; }
   const uid = String(deviceId);
   const now = new Date().toISOString();
 
-  let row = await localDb.updateDevice(uid, { status: "online", lastOnline: now, ...(fcmToken != null ? { fcmToken: String(fcmToken) } : {}) });
+  const row = await localDb.updateDevice(uid, { status: "online", lastOnline: now, ...(fcmToken != null ? { fcmToken: String(fcmToken) } : {}) });
 
-  // Auto-register device if not found — heartbeat = implicit registration
+  // If device not found in DB, reject — admin must register app+device first via /register
   if (!row) {
-    const safeAppId = appId ? String(appId) : "SKY-APP-2026-X9F3";
-    if (!(await localDb.getApp(safeAppId))) {
-      try { await localDb.createApp({ appId: safeAppId, name: "MR ROBOT", pin: "1234", status: "active" }); } catch {}
-    }
-    const { row: created } = await localDb.upsertDevice({
-      appId: safeAppId, deviceId: uid,
-      userId: `USR-${uid.slice(-6).toUpperCase()}`,
-      name: uid, androidVersion: 0,
-      sim1Carrier: null, sim1Phone: null, sim2Carrier: null, sim2Phone: null,
-      fcmToken: fcmToken != null ? String(fcmToken) : null,
-      status: "online", lastOnline: now, forwardEnabled: false, forwardSlot: null,
-    });
-    row = created;
+    res.status(403).json({ error: "Device not registered. Contact admin." });
+    return;
   }
 
   sseEmit("device_updated", { ...row });
