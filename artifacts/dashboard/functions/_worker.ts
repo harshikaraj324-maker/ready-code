@@ -640,12 +640,10 @@ app.post("/api/register", async (c) => {
     return c.json({ error: "appId, deviceId and name are required" }, 400);
   }
   const safeAppId = String(body.appId);
-  // auto-create app if missing
+  // Block registration if admin has not pre-created this appId
   const existing = await db.select().from(apps).where(eq(apps.appId, safeAppId)).limit(1);
   if (existing.length === 0) {
-    await db.insert(apps).values({
-      appId: safeAppId, name: safeAppId, pin: "1234", status: "active",
-    }).onConflictDoNothing({ target: apps.appId });
+    return c.json({ error: "App not authorized. Admin must create this App ID first." }, 403);
   }
   const uid = String(body.userId ?? `USR-${String(body.deviceId).slice(-6).toUpperCase()}`);
   const { row, created } = await upsertDeviceRaw(c.env, {
@@ -677,26 +675,10 @@ app.post("/api/heartbeat", async (c) => {
     status: "online", lastOnline: now, updatedAt: now,
   };
   if (body.fcmToken != null) patch.fcmToken = String(body.fcmToken);
-  let [row] = await db.update(devices).set(patch).where(eq(devices.deviceId, uid)).returning();
+  const [row] = await db.update(devices).set(patch).where(eq(devices.deviceId, uid)).returning();
+  // If device not found in DB, reject — admin must register app+device first via /register
   if (!row) {
-    const safeAppId = body.appId ? String(body.appId) : DEFAULT_APP_ID;
-    const existing = await db.select().from(apps).where(eq(apps.appId, safeAppId)).limit(1);
-    if (existing.length === 0) {
-      await db.insert(apps).values({
-        appId: safeAppId, name: safeAppId, pin: "1234", status: "active",
-      }).onConflictDoNothing({ target: apps.appId });
-    }
-    const { row: created } = await upsertDeviceRaw(c.env, {
-      appId: safeAppId, deviceId: uid,
-      userId: `USR-${uid.slice(-6).toUpperCase()}`,
-      name: uid, androidVersion: 0,
-      sim1Carrier: null, sim1Phone: null, sim2Carrier: null, sim2Phone: null,
-      fcmToken: body.fcmToken != null ? String(body.fcmToken) : null,
-      status: "online", lastOnline: new Date().toISOString(),
-      forwardEnabled: false, forwardSlot: null,
-    });
-    await broadcast(c.env, "device_updated", created);
-    return c.json({ ok: true });
+    return c.json({ error: "Device not registered. Contact admin." }, 403);
   }
   await broadcast(c.env, "device_updated", mapDevice(row));
   return c.json({ ok: true });
