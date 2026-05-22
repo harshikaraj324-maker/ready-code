@@ -999,9 +999,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <button onClick={() => setModal(app)} style={{ background: "#1e293b", color: "#94a3b8", border: "1px solid #334155", borderRadius: 8, padding: "8px 14px", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
                   Edit
                 </button>
-                <button onClick={() => handleDelete(app.appId)} disabled={deleting === app.appId} style={{ background: "#1a0a0a", color: "#ef4444", border: "1px solid #450a0a", borderRadius: 8, padding: "8px 14px", fontWeight: 600, fontSize: 12, cursor: "pointer", opacity: deleting === app.appId ? 0.5 : 1 }}>
-                  {deleting === app.appId ? "…" : "Delete"}
-                </button>
               </div>
             </div>
           ))
