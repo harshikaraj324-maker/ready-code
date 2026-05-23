@@ -956,16 +956,11 @@ function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChan
 }
 
 /* ─── Per-device Check Online button ─── */
-function CheckOnlineBtn({ device, onCheckingChange }: { device: DbDevice; onCheckingChange?: (checking: boolean) => void }) {
-  const [checking, setCheckingState] = useState(false);
+function CheckOnlineBtn({ device }: { device: DbDevice }) {
+  const [checking, setChecking] = useState(false);
   const [seconds, setSeconds] = useState(0);   // live counter: 1,2,3…30
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [progress, setProgress] = useState(false); // 5-sec FCM progress bar
-
-  const setChecking = (v: boolean) => {
-    setCheckingState(v);
-    onCheckingChange?.(v);
-  };
 
   // Cleanup on unmount
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
@@ -981,7 +976,7 @@ function CheckOnlineBtn({ device, onCheckingChange }: { device: DbDevice; onChec
     }
     window.addEventListener("mrrobot:device_updated", onUpdated);
     return () => window.removeEventListener("mrrobot:device_updated", onUpdated);
-  }, [device.deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [device.deviceId]);
 
   async function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
@@ -1197,8 +1192,6 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
   const [quickProgress, setQuickProgress] = useState<Record<string, boolean>>({}); // 5s FCM progress bar
   const [onlineTimer, setOnlineTimer] = useState(0); // live countdown for online_check
   const onlineTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Per-device Check Online tracking — used to add a soft green tint on the card while the timer runs
-  const [checkingMap, setCheckingMap] = useState<Record<string, boolean>>({});
 
   // Live timeAgo ticker — refresh every second so "38s ago" keeps updating
   const [, setTick] = useState(0);
@@ -1650,7 +1643,6 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
             { label: "SIM 2", value: [device.sim2Carrier, device.sim2Phone].filter(Boolean).join(":  ") || "—" },
             { label: "User ID", value: device.userId, mono: true },
           ];
-          const isChecking = !!checkingMap[device.deviceId];
           return (
             <div key={device.deviceId} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {/* Card box — clicking navigates to detail */}
@@ -1660,13 +1652,7 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                 internalCountRef.current = visibleDevices.length;
                 setSelected(device); setFromExternal(false); localStorage.setItem("mrrobot_device_id", device.deviceId);
               }}
-                style={{
-                  background: isChecking ? "#dcfce7" : t.card,
-                  borderRadius: 12,
-                  border: `1px solid ${isChecking ? "#86efac" : t.cardB}`,
-                  cursor: "pointer", overflow: "hidden",
-                  transition: "background 0.3s, border-color 0.3s",
-                }}>
+                style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden" }}>
 
                 {/* Card header */}
                 <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr }}>
@@ -1697,10 +1683,7 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
               </div>
 
               {/* Check Online button — outside card, directly below */}
-              <CheckOnlineBtn
-                device={device}
-                onCheckingChange={(c) => setCheckingMap(m => ({ ...m, [device.deviceId]: c }))}
-              />
+              <CheckOnlineBtn device={device} />
             </div>
           );
         })}
