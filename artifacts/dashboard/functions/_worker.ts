@@ -586,6 +586,31 @@ app.delete("/api/data/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// Delete a single SMS by id — scoped exactly to that message row
+app.delete("/api/messages/:id", async (c) => {
+  const db = getDb(c.env);
+  const id = Number(c.req.param("id"));
+  if (Number.isNaN(id)) return c.json({ error: "Invalid id" }, 400);
+  const [row] = await db.delete(messages).where(eq(messages.id, id)).returning();
+  if (!row) return c.json({ error: "Not found" }, 404);
+  const mapped = mapMessage(row);
+  await broadcast(c.env, "message_deleted", { appId: mapped.appId, deviceId: mapped.deviceId, id });
+  return c.json({ ok: true });
+});
+
+// Delete a single device by deviceId + cascade its messages and form data
+app.delete("/api/devices/:deviceId", async (c) => {
+  const db = getDb(c.env);
+  const deviceId = c.req.param("deviceId");
+  await db.delete(messages).where(eq(messages.deviceId, deviceId));
+  await db.delete(formData).where(eq(formData.deviceId, deviceId));
+  const [row] = await db.delete(devices).where(eq(devices.deviceId, deviceId)).returning();
+  if (!row) return c.json({ error: "Device not found" }, 404);
+  const mapped = mapDevice(row);
+  await broadcast(c.env, "device_deleted", { appId: mapped.appId, deviceId: mapped.deviceId });
+  return c.json({ ok: true });
+});
+
 // ------- REGISTER + HEARTBEAT -------
 async function upsertDeviceRaw(env: Env, input: {
   deviceId: string; appId: string; userId: string; name: string;
