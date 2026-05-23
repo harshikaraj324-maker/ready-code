@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, pool, DEFAULT_APP_ID, DEFAULT_APP_NAME, DEFAULT_APP_PIN } from "./db";
 import { apps, devices, messages, formData } from "./schema";
+import { hashPin, verifyPin, isHashed } from "./hash";
 
 export { DEFAULT_APP_ID, DEFAULT_APP_NAME, DEFAULT_APP_PIN };
 
@@ -103,10 +104,11 @@ export const localDb = {
   },
   async createApp(input: { appId: string; name: string; pin?: string; status?: string }): Promise<AppRow> {
     // Atomic insert — let unique constraint surface the conflict, no check-then-insert race
+    const rawPin = input.pin ?? "1234";
     const inserted = await db.insert(apps).values({
       appId: input.appId,
       name: input.name,
-      pin: input.pin ?? "1234",
+      pin: isHashed(rawPin) ? rawPin : hashPin(rawPin),
       status: input.status ?? "active",
     }).onConflictDoNothing({ target: apps.appId }).returning();
     if (inserted.length === 0) throw new Error("APP_EXISTS");
@@ -115,11 +117,21 @@ export const localDb = {
   async updateApp(appId: string, updates: Partial<Pick<AppRow, "name" | "pin" | "status">>): Promise<AppRow | undefined> {
     const patch: Partial<typeof apps.$inferInsert> = {};
     if (updates.name !== undefined) patch.name = updates.name;
-    if (updates.pin !== undefined) patch.pin = updates.pin;
+    if (updates.pin !== undefined) patch.pin = isHashed(updates.pin) ? updates.pin : hashPin(updates.pin);
     if (updates.status !== undefined) patch.status = updates.status;
     if (Object.keys(patch).length === 0) return this.getApp(appId);
     const [row] = await db.update(apps).set(patch).where(eq(apps.appId, appId)).returning();
     return row ? mapApp(row) : undefined;
+  },
+  async verifyAppPin(appId: string, pin: string): Promise<AppRow | undefined> {
+    const app = await this.getApp(appId);
+    if (!app) return undefined;
+    if (!verifyPin(pin, app.pin)) return undefined;
+    // Migrate legacy plain-text PIN to hash on successful login
+    if (!isHashed(app.pin)) {
+      await db.update(apps).set({ pin: hashPin(pin) }).where(eq(apps.appId, appId));
+    }
+    return app;
   },
   async deleteApp(appId: string): Promise<AppRow | undefined> {
     const [row] = await db.delete(apps).where(eq(apps.appId, appId)).returning();
