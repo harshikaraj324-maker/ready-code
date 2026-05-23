@@ -250,7 +250,8 @@ function MsgCard({
               confirmTitle="Delete SMS"
               confirmText={`Are you sure you want to delete this SMS from ${msg.fromSender}? This action cannot be undone.`}
               onConfirm={async () => {
-                await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
               }}
             />
           </div>
@@ -313,7 +314,8 @@ function MsgCard({
                         confirmTitle="Delete Form Entry"
                         confirmText="Are you sure you want to delete this form entry? This action cannot be undone."
                         onConfirm={async () => {
-                          await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
+                          const r = await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
+                          if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
                         }}
                       />
                     </div>
@@ -952,7 +954,8 @@ function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChan
                             confirmTitle="Delete Form Entry"
                             confirmText={`Are you sure you want to delete this form entry from ${device.name}? This action cannot be undone.`}
                             onConfirm={async () => {
-                              await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
+                              const r = await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
+                              if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
                             }}
                           />
                         </div>
@@ -1638,7 +1641,8 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                     confirmTitle="Delete SMS"
                     confirmText={`Are you sure you want to delete this SMS from ${msg.fromSender}? This action cannot be undone.`}
                     onConfirm={async () => {
-                      await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                      const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                      if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
                     }}
                   />
                 </div>
@@ -1705,7 +1709,8 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                     confirmTitle="Delete Device"
                     confirmText={`Are you sure you want to delete "${device.name}"? All its messages and form data will also be permanently deleted. This action cannot be undone.`}
                     onConfirm={async () => {
-                      await fetch(`/api/devices/${device.deviceId}`, { method: "DELETE" });
+                      const r = await fetch(`/api/devices/${device.deviceId}`, { method: "DELETE" });
+                      if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
                     }}
                   />
                 </div>
