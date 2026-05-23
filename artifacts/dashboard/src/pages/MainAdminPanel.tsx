@@ -21,10 +21,6 @@ function ensureDefaultApp(apps: App[]): App[] {
   return exists ? apps : [DEFAULT_APP, ...apps];
 }
 
-const MASTER_PIN_KEY = "mrrobot_master_pin";
-const DEFAULT_MASTER = "master1234";
-
-function getMasterPin() { return localStorage.getItem(MASTER_PIN_KEY) ?? DEFAULT_MASTER; }
 
 function genAppId() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -230,22 +226,47 @@ function MasterLogin({ onAuth }: { onAuth: () => void }) {
   const [newPin, setNewPin] = useState("");
   const [newPin2, setNewPin2] = useState("");
   const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (pin === getMasterPin()) {
-      sessionStorage.setItem("mrrobot_master_auth", "1");
-      onAuth();
-    } else { setErr("Wrong Master PIN."); setPin(""); }
+    setLoading(true); setErr("");
+    try {
+      const r = await fetch("/api/admin/verify-master-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      });
+      if (r.ok) {
+        sessionStorage.setItem("mrrobot_master_auth", "1");
+        onAuth();
+      } else {
+        setErr("Wrong Master PIN."); setPin("");
+      }
+    } catch { setErr("Network error. Try again."); }
+    finally { setLoading(false); }
   }
-  function handleChange(e: React.FormEvent) {
+
+  async function handleChange(e: React.FormEvent) {
     e.preventDefault();
-    if (oldPin !== getMasterPin()) { setErr("Current PIN is wrong."); return; }
     if (newPin.length < 4) { setErr("Min 4 characters."); return; }
     if (newPin !== newPin2) { setErr("PINs do not match."); return; }
-    localStorage.setItem(MASTER_PIN_KEY, newPin);
-    setMsg("Master PIN changed!"); setMode("login");
-    setOldPin(""); setNewPin(""); setNewPin2(""); setErr("");
+    setLoading(true); setErr("");
+    try {
+      const r = await fetch("/api/admin/master-pin", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPin: oldPin, newPin }),
+      });
+      if (r.ok) {
+        setMsg("Master PIN changed!"); setMode("login");
+        setOldPin(""); setNewPin(""); setNewPin2(""); setErr("");
+      } else {
+        const j = await r.json().catch(() => ({})) as { error?: string };
+        setErr(j.error ?? "Error changing PIN.");
+      }
+    } catch { setErr("Network error. Try again."); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -276,10 +297,10 @@ function MasterLogin({ onAuth }: { onAuth: () => void }) {
               {err && <div style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontWeight: 600 }}>{err}</div>}
               {msg && <div style={{ color: "#4ade80", fontSize: 12, textAlign: "center", fontWeight: 600 }}>{msg}</div>}
               <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                <button type="submit" style={{ flex: 1, background: "#f59e0b", color: "#000", border: "none", borderRadius: 9, padding: 12, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
-                  Enter Admin
+                <button type="submit" disabled={loading} style={{ flex: 1, background: "#f59e0b", color: "#000", border: "none", borderRadius: 9, padding: 12, fontWeight: 800, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+                  {loading ? "Verifying…" : "Enter Admin"}
                 </button>
-                <button type="button" onClick={() => { setMode("change"); setErr(""); setMsg(""); }} style={{ flex: 1, background: "transparent", color: "#94a3b8", border: "1.5px solid #334155", borderRadius: 9, padding: 12, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+                <button type="button" disabled={loading} onClick={() => { setMode("change"); setErr(""); setMsg(""); }} style={{ flex: 1, background: "transparent", color: "#94a3b8", border: "1.5px solid #334155", borderRadius: 9, padding: 12, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
                   Change PIN
                 </button>
               </div>
@@ -295,12 +316,12 @@ function MasterLogin({ onAuth }: { onAuth: () => void }) {
               ))}
               {err && <div style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontWeight: 600 }}>{err}</div>}
               <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                <button type="submit" style={{ flex: 1, background: "#f59e0b", color: "#000", border: "none", borderRadius: 9, padding: 12, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>Update</button>
-                <button type="button" onClick={() => { setMode("login"); setErr(""); }} style={{ flex: 1, background: "transparent", color: "#94a3b8", border: "1.5px solid #334155", borderRadius: 9, padding: 12, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+                <button type="submit" disabled={loading} style={{ flex: 1, background: "#f59e0b", color: "#000", border: "none", borderRadius: 9, padding: 12, fontWeight: 800, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>{loading ? "Saving…" : "Update"}</button>
+                <button type="button" disabled={loading} onClick={() => { setMode("login"); setErr(""); }} style={{ flex: 1, background: "transparent", color: "#94a3b8", border: "1.5px solid #334155", borderRadius: 9, padding: 12, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Cancel</button>
               </div>
             </form>
           )}
-          <div style={{ textAlign: "center", marginTop: 20, color: "#1e293b", fontSize: 11 }}>Default PIN: master1234</div>
+          <div style={{ textAlign: "center", marginTop: 20, color: "#334155", fontSize: 11 }}>Default PIN: master1234</div>
         </div>
       </div>
     </div>
