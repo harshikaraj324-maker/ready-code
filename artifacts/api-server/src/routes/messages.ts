@@ -40,4 +40,14 @@ router.post("/messages", async (req, res) => {
   res.status(201).json({ ok: true, id: inserted.id });
 });
 
+router.delete("/messages/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const row = await localDb.deleteMessage(id);
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  // Emit SSE so all connected dashboards remove this message instantly
+  sseEmit("message_deleted", { appId: row.appId, deviceId: row.deviceId, id });
+  res.json({ ok: true });
+});
+
 export default router;
