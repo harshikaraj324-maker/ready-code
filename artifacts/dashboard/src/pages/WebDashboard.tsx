@@ -1356,7 +1356,26 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
 
         {/* Info rows */}
         <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
-          <Row label="Name" value={selected.name} />
+          {/* Name row with Back button at right end */}
+          <div style={{ display: "flex", alignItems: "center", padding: "9px 14px", borderBottom: `1px solid ${t.hdrB}`, gap: 8 }}>
+            <div style={{ width: 100, fontSize: 11, color: t.muted, fontWeight: 600, flexShrink: 0, textTransform: "uppercase", letterSpacing: 0.3 }}>Name</div>
+            <div style={{ flex: 1, fontSize: 12, color: t.txt, wordBreak: "break-all" }}>{selected.name}</div>
+            <button
+              onClick={handleBack}
+              style={{
+                flexShrink: 0,
+                background: "#6366f1",
+                border: `1.5px solid #6366f1`,
+                borderRadius: 8, padding: "8px 14px",
+                fontSize: 13, fontWeight: 800,
+                color: "#fff",
+                cursor: "pointer", transition: "all 0.15s",
+                boxShadow: "0 2px 10px rgba(99,102,241,0.5)",
+                letterSpacing: 0.3,
+              }}>
+              ← Back
+            </button>
+          </div>
           <Row label="Device ID" value={selected.deviceId} mono accent="#22c55e" />
           <Row label="Android" value={`v${selected.androidVersion}`} />
           <Row label="User ID" value={selected.userId} mono />
@@ -1424,6 +1443,7 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
             <button
               onClick={handleBack}
               style={{
+                display: "none", // moved to Name row
                 flexShrink: 0,
                 background: "#6366f1",
                 border: `1.5px solid #6366f1`,
