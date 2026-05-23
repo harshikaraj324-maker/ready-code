@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS _meta (
   value TEXT NOT NULL,
   set_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `;
 
 type JsonFile = {
