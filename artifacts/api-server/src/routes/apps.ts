@@ -78,8 +78,9 @@ router.post("/apps/:appId/verify-pin", async (req, res) => {
   const app = await localDb.getApp(req.params.appId);
   if (!app) { res.status(404).json({ error: "App not found" }); return; }
   if (app.status !== "active") { res.status(403).json({ error: "App is disabled" }); return; }
-  if (app.pin !== pin) { res.status(401).json({ error: "Wrong PIN" }); return; }
-  res.json({ ok: true, appId: app.appId, name: app.name });
+  const verified = await localDb.verifyAppPin(req.params.appId, pin);
+  if (!verified) { res.status(401).json({ error: "Wrong PIN" }); return; }
+  res.json({ ok: true, appId: verified.appId, name: verified.name });
 });
 
 export default router;
