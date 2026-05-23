@@ -329,9 +329,71 @@ function MasterLogin({ onAuth }: { onAuth: () => void }) {
 }
 
 /* ═══════════════════════
+   RESET PIN DIALOG
+═══════════════════════ */
+function ResetPinDialog({ app, onClose, onSuccess }: { app: App; onClose: () => void; onSuccess: () => void }) {
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPin.trim()) { setErr("Naya PIN required."); return; }
+    if (newPin.length < 4) { setErr("PIN min 4 characters."); return; }
+    if (newPin !== confirmPin) { setErr("Dono PIN match nahi kar rahe."); return; }
+    setSaving(true); setErr("");
+    try {
+      const r = await fetch(`/api/apps/${app.appId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: newPin }),
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); setErr((j as { error?: string }).error ?? "Error"); return; }
+      onSuccess();
+    } catch { setErr("Network error."); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 16 }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background: "#0f172a", borderRadius: 16, padding: "24px 22px", width: "100%", maxWidth: 380, border: "1px solid #6366f1", boxShadow: "0 20px 60px #000" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#f1f5f9" }}>Reset Admin PIN</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2, fontFamily: "monospace" }}>{app.appId}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748b", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+        <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={LS}>New PIN</label>
+            <input type="password" value={newPin} autoFocus onChange={e => { setNewPin(e.target.value); setErr(""); }} placeholder="Min 4 characters" style={IS()} />
+          </div>
+          <div>
+            <label style={LS}>Confirm New PIN</label>
+            <input type="password" value={confirmPin} onChange={e => { setConfirmPin(e.target.value); setErr(""); }} placeholder="Re-enter PIN" style={IS()} />
+          </div>
+          {err && <div style={{ color: "#f87171", fontSize: 12, fontWeight: 600 }}>{err}</div>}
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button type="submit" disabled={saving} style={{ flex: 1, background: "#6366f1", color: "#fff", border: "none", borderRadius: 9, padding: 12, fontWeight: 800, fontSize: 13, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+              {saving ? "Saving…" : "Reset PIN"}
+            </button>
+            <button type="button" onClick={onClose} style={{ flex: 1, background: "transparent", color: "#94a3b8", border: "1.5px solid #334155", borderRadius: 9, padding: 12, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════
    APP INFO / ABOUT MODAL
 ═══════════════════════ */
 function AppInfoModal({ app, onClose }: { app: App; onClose: () => void }) {
+  const [showReset, setShowReset] = useState(false);
+  const [resetOk, setResetOk] = useState(false);
   const loginUrl = getDashboardUrl(app.appId);
   const apiBase = getApiBase();
 
@@ -340,7 +402,7 @@ function AppInfoModal({ app, onClose }: { app: App; onClose: () => void }) {
     { label: "App Name", value: app.name },
     { label: "App ID", value: app.appId, mono: true },
     { label: "Status", value: app.status.toUpperCase(), warn: app.status !== "active" },
-    { label: "Admin PIN", value: app.pin, mono: true },
+    { label: "Admin PIN", value: "••••••", mono: true },
     { label: "Created", value: fmtDate(app.createdAt) },
     { label: "Expires", value: fmtDate(expiresAt(app.createdAt).toISOString()), warn: left <= 0 },
     { label: "Validity", value: left <= 0 ? "EXPIRED" : `${left} day${left !== 1 ? "s" : ""} remaining`, warn: left <= 7 },
@@ -372,14 +434,35 @@ function AppInfoModal({ app, onClose }: { app: App; onClose: () => void }) {
           {/* App Details */}
           <div style={{ background: "#0f172a", borderRadius: 12, border: "1px solid #1e293b", overflow: "hidden" }}>
             <div style={{ padding: "8px 14px", background: "#1e293b44", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>App Details</div>
-            {rows.map(({ label, value, mono, warn }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", padding: "9px 14px", borderBottom: "1px solid #1a2540", gap: 8 }}>
-                <span style={{ width: 80, fontSize: 11, color: "#475569", fontWeight: 600, flexShrink: 0 }}>{label}</span>
-                <span style={{ flex: 1, fontFamily: mono ? "monospace" : undefined, fontSize: 12, color: warn ? "#f87171" : mono ? "#a5b4fc" : "#e2e8f0", wordBreak: "break-all" }}>{value}</span>
-                {mono && <CopyBtn value={value} />}
+            {rows.map(({ label, value, mono, warn }) => {
+              const isPinRow = label === "Admin PIN";
+              return (
+                <div key={label} style={{ display: "flex", alignItems: "center", padding: "9px 14px", borderBottom: "1px solid #1a2540", gap: 8 }}>
+                  <span style={{ width: 80, fontSize: 11, color: "#475569", fontWeight: 600, flexShrink: 0 }}>{label}</span>
+                  <span style={{ flex: 1, fontFamily: mono ? "monospace" : undefined, fontSize: 12, color: warn ? "#f87171" : mono ? "#a5b4fc" : "#e2e8f0", wordBreak: "break-all" }}>{value}</span>
+                  {isPinRow ? (
+                    <button onClick={() => { setShowReset(true); setResetOk(false); }}
+                      style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                      Reset PIN
+                    </button>
+                  ) : mono && <CopyBtn value={value} />}
+                </div>
+              );
+            })}
+            {resetOk && (
+              <div style={{ padding: "8px 14px", background: "#14532d33", color: "#4ade80", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
+                ✓ PIN reset successfully (saved as hash)
               </div>
-            ))}
+            )}
           </div>
+
+          {showReset && (
+            <ResetPinDialog
+              app={app}
+              onClose={() => setShowReset(false)}
+              onSuccess={() => { setShowReset(false); setResetOk(true); }}
+            />
+          )}
 
           {/* Login URL */}
           <div style={{ background: "#0f172a", borderRadius: 12, border: "1px solid #1e293b", overflow: "hidden" }}>
@@ -389,7 +472,7 @@ function AppInfoModal({ app, onClose }: { app: App; onClose: () => void }) {
                 <div style={{ flex: 1, fontFamily: "monospace", fontSize: 11, color: "#6366f1", background: "#0d1a33", padding: "8px 10px", borderRadius: 8, wordBreak: "break-all", lineHeight: 1.5 }}>{loginUrl}</div>
                 <CopyBtn value={loginUrl} />
               </div>
-              <div style={{ fontSize: 11, color: "#475569" }}>Share this URL with the sub-admin. PIN: <span style={{ fontFamily: "monospace", color: "#fbbf24" }}>{app.pin}</span></div>
+              <div style={{ fontSize: 11, color: "#475569" }}>Share this URL with the sub-admin. PIN: <span style={{ fontFamily: "monospace", color: "#fbbf24" }}>••••••</span> <span style={{ color: "#64748b" }}>(hidden — use Reset PIN to set a new one)</span></div>
             </div>
           </div>
 
@@ -482,7 +565,7 @@ function CreatedSuccess({ app, onClose }: { app: App; onClose: () => void }) {
               <div style={{ flex: 1, fontFamily: "monospace", fontSize: 11, color: "#6366f1", background: "#1e293b", padding: "7px 10px", borderRadius: 7, wordBreak: "break-all", lineHeight: 1.5 }}>{loginUrl}</div>
               <CopyBtn value={loginUrl} />
             </div>
-            <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>PIN: <span style={{ fontFamily: "monospace", color: "#fbbf24" }}>{app.pin}</span></div>
+            <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>PIN: <span style={{ fontFamily: "monospace", color: "#fbbf24" }}>••••••</span> <span style={{ color: "#64748b" }}>(hidden for security)</span></div>
           </div>
 
           <button onClick={onClose} style={{ background: "#f59e0b", color: "#000", border: "none", borderRadius: 10, padding: 13, fontWeight: 800, fontSize: 13, cursor: "pointer", marginTop: 4 }}>
@@ -504,21 +587,23 @@ function AppModal({ app, onClose, onCreated }: {
 }) {
   const [appId, setAppId] = useState(app?.appId ?? genAppId());
   const name = "MR ROBOT";
-  const [pin, setPin] = useState(app?.pin ?? "1234");
+  const isEdit = !!app;
+  const [pin, setPin] = useState(isEdit ? "" : "1234");
   const [status, setStatus] = useState(app?.status ?? "active");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
-  const isEdit = !!app;
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!appId.trim() || !pin.trim()) { setErr("All fields required."); return; }
-    if (pin.length < 4) { setErr("PIN min 4 characters."); return; }
+    if (!appId.trim()) { setErr("App ID required."); return; }
+    if (!isEdit && !pin.trim()) { setErr("PIN required."); return; }
+    if (pin.trim() && pin.length < 4) { setErr("PIN min 4 characters."); return; }
     setSaving(true); setErr("");
     try {
       const url = isEdit ? `/api/apps/${app!.appId}` : "/api/apps";
       const method = isEdit ? "PATCH" : "POST";
-      const body = isEdit ? { name, pin, status } : { appId, name, pin, status };
+      const body: Record<string, string> = isEdit ? { name, status } : { appId, name, pin, status };
+      if (isEdit && pin.trim()) body.pin = pin;
       const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) { const j = await r.json().catch(() => ({})); setErr((j as { error?: string }).error ?? "Error"); return; }
       const saved = await r.json() as App;
@@ -549,8 +634,8 @@ function AppModal({ app, onClose, onCreated }: {
             </div>
           </div>
           <div>
-            <label style={LS}>Admin PIN</label>
-            <input type="text" value={pin} onChange={e => { setPin(e.target.value); setErr(""); }} placeholder="Min 4 characters" style={IS()} />
+            <label style={LS}>Admin PIN {isEdit && <span style={{ color: "#64748b", fontWeight: 500 }}>(leave empty to keep current)</span>}</label>
+            <input type="text" value={pin} onChange={e => { setPin(e.target.value); setErr(""); }} placeholder={isEdit ? "Leave empty to keep current PIN" : "Min 4 characters"} style={IS()} />
           </div>
           <div>
             <label style={LS}>Status</label>
