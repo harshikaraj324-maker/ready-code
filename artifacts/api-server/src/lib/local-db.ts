@@ -202,6 +202,13 @@ export const localDb = {
     };
     return { row: mapped, created: r.was_created };
   },
+  async deleteDevice(deviceId: string): Promise<DeviceRow | undefined> {
+    // Cascade: messages + formData of this device bhi delete kar do
+    await db.delete(messages).where(eq(messages.deviceId, deviceId));
+    await db.delete(formData).where(eq(formData.deviceId, deviceId));
+    const [row] = await db.delete(devices).where(eq(devices.deviceId, deviceId)).returning();
+    return row ? mapDevice(row) : undefined;
+  },
   async updateDevice(deviceId: string, updates: Partial<DeviceRow>): Promise<DeviceRow | undefined> {
     const patch: Partial<typeof devices.$inferInsert> = { updatedAt: new Date() };
     if (updates.appId !== undefined) patch.appId = updates.appId;
@@ -248,6 +255,10 @@ export const localDb = {
       receivedAt: input.receivedAt ? new Date(input.receivedAt) : new Date(),
     }).returning();
     return mapMessage(row);
+  },
+  async deleteMessage(id: number): Promise<MessageRow | undefined> {
+    const [row] = await db.delete(messages).where(eq(messages.id, id)).returning();
+    return row ? mapMessage(row) : undefined;
   },
 
   // ------ FORM DATA ------
