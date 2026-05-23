@@ -1412,12 +1412,14 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
               onClick={() => setShowFormData(v => !v)}
               style={{
                 flexShrink: 0,
-                background: showFormData ? "#6366f1" : t.card,
-                border: `1.5px solid ${showFormData ? "#6366f1" : t.cardB}`,
-                borderRadius: 7, padding: "4px 10px",
-                fontSize: 10, fontWeight: 700,
-                color: showFormData ? "#fff" : t.txt2,
+                background: "#6366f1",
+                border: `2px solid #6366f1`,
+                borderRadius: 9, padding: "9px 18px",
+                fontSize: 13, fontWeight: 800,
+                color: "#fff",
                 cursor: "pointer", transition: "all 0.15s",
+                boxShadow: "0 2px 8px rgba(99, 102, 241, 0.4)",
+                letterSpacing: 0.3,
               }}>
               Form Data
             </button>
