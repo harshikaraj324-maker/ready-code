@@ -11,6 +11,7 @@ import formDataRouter from "./form-data";
 import statsRouter from "./stats";
 import sampleRouter from "./sample";
 import eventsRouter from "./events";
+import masterPinRouter from "./master-pin";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(formDataRouter);
 router.use(statsRouter);
 router.use(sampleRouter);
 router.use(eventsRouter);
+router.use(masterPinRouter);
 
 export default router;
