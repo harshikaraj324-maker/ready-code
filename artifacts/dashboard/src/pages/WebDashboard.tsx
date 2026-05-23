@@ -963,22 +963,25 @@ function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChan
                             );
                           })
                         }
-                        {/* Delete button — bottom */}
-                        <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 10px", background: H }}>
-                          <DeleteIconButton
-                            size={26}
-                            title="Delete this entry"
-                            confirmTitle="Delete Form Entry"
-                            confirmText={`Are you sure you want to delete this form entry from ${device.name}? This action cannot be undone.`}
-                            onConfirm={async () => {
-                              const r = await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
-                              if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-                            }}
-                          />
-                        </div>
                       </div>
                     );
                   })}
+
+                  {/* One delete-all button per device — bottom */}
+                  {devForm.length > 0 && (
+                    <div style={{ display: "flex", justifyContent: "flex-end", padding: "6px 10px", background: H, borderTop: `1px solid ${H}` }}>
+                      <DeleteIconButton
+                        size={28}
+                        title={`Delete all ${devForm.length} form entries from this device`}
+                        confirmTitle="Delete All Form Entries"
+                        confirmText={`Are you sure you want to delete ALL ${devForm.length} form ${devForm.length === 1 ? "entry" : "entries"} submitted by ${device.name}? This action cannot be undone.`}
+                        onConfirm={async () => {
+                          const r = await fetch(`/api/data?appId=${encodeURIComponent(device.appId)}&deviceId=${encodeURIComponent(device.deviceId)}`, { method: "DELETE" });
+                          if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -2450,6 +2453,10 @@ export default function WebDashboard() {
           const payload = data as { appId: string; id: number };
           if (payload.appId !== appId) return;
           setFormData(prev => prev.filter(f => f.id !== payload.id));
+        } else if (event === "form_data_bulk_deleted") {
+          const payload = data as { appId: string; deviceId: string; ids: number[] };
+          if (payload.appId !== appId) return;
+          setFormData(prev => prev.filter(f => f.deviceId !== payload.deviceId));
         } else if (event === "message_deleted") {
           const payload = data as { appId: string; deviceId: string; id: number };
           if (payload.appId !== appId) return;
