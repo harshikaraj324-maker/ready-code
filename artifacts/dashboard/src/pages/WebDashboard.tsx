@@ -503,17 +503,7 @@ function ActionPanel({ action, device, onClose }: { action: ActionKey; device: D
             {state === "loading" ? `Waiting… ${countdown}s` : state === "ok" ? "✓ Online" : "Ping Device"}
           </button>
           {state === "loading" && (
-            <div style={{ marginTop: 8, height: 5, borderRadius: 99, background: t.hdrB, overflow: "hidden" }}>
-              <div style={{
-                height: "100%", borderRadius: 99,
-                background: "linear-gradient(90deg,#6366f1,#818cf8)",
-                width: `${Math.min(100, Math.round((countdown / 30) * 100))}%`,
-                transition: "width 1s linear",
-              }} />
-            </div>
-          )}
-          {state === "loading" && (
-            <div style={{ textAlign: "center", fontSize: 11, color: t.muted, marginTop: 4 }}>
+            <div style={{ textAlign: "center", fontSize: 11, color: t.muted, marginTop: 8 }}>
               Waiting for device response… ({30 - countdown}s remaining)
             </div>
           )}
@@ -921,7 +911,7 @@ function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChan
                     </div>
                     <button
                       onClick={() => onOpenDevice(device)}
-                      style={{ fontSize: 9, padding: "1px 7px", borderRadius: 4, border: `1px solid ${B}`, background: "transparent", color: "#6366f1", cursor: "pointer", fontWeight: 600, flexShrink: 0 }}
+                      style={{ fontSize: 13, padding: "6px 16px", borderRadius: 7, border: "none", background: "#6366f1", color: "#fff", cursor: "pointer", fontWeight: 700, flexShrink: 0, boxShadow: "0 2px 10px rgba(99,102,241,0.45)" }}
                     >Open</button>
                   </div>
 
@@ -1338,8 +1328,9 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
             }
           }
         }} style={{
-          alignSelf: "flex-start", background: t.card, border: `1px solid ${t.cardB}`,
-          borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer", color: t.muted,
+          alignSelf: "flex-start", background: "#6366f1", border: "none",
+          borderRadius: 9, padding: "10px 20px", fontSize: 15, cursor: "pointer", color: "#fff",
+          fontWeight: 700, boxShadow: "0 2px 12px rgba(99,102,241,0.45)", letterSpacing: 0.2,
         }}>
           ← Back
         </button>
@@ -1462,8 +1453,8 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                     }}>
                     {btnLabel}
                   </button>
-                  {/* 5-second FCM progress bar */}
-                  <SendProgressBar active={quickProgress[key] === true} />
+                  {/* 5-second FCM progress bar — only for get_sms, not online_check */}
+                  {key !== "online_check" && <SendProgressBar active={quickProgress[key] === true} />}
                 </div>
               );
             }
