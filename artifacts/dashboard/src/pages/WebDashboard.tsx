@@ -1866,6 +1866,41 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
   return (
     <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
 
+      {/* ── Download Android App ── */}
+      <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
+        <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16 }}>📱</span>
+          <span style={{ fontWeight: 800, fontSize: 13, color: t.txt }}>Download Android App</span>
+        </div>
+        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.5 }}>
+            Install the MR ROBOT Android app on a device. Tap the button below to download the latest APK, then open it on your phone to install.
+          </div>
+          <a
+            href="/MR_ROBOT.apk"
+            download="MR_ROBOT.apk"
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "12px 18px", borderRadius: 8,
+              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              color: "#fff", fontWeight: 700, fontSize: 13,
+              textDecoration: "none", boxShadow: "0 4px 14px rgba(99,102,241,0.45)",
+              cursor: "pointer", border: "none",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download APK
+          </a>
+          <div style={{ fontSize: 10, color: t.muted, lineHeight: 1.4 }}>
+            ⚠ You may need to enable "Install from unknown sources" in your phone settings.
+          </div>
+        </div>
+      </div>
+
       {/* ── Update Admin ── */}
       <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
         <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.hdrB}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
