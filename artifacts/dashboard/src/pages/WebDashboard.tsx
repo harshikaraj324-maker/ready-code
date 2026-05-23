@@ -242,19 +242,7 @@ function MsgCard({
         {/* Header row */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
           <span style={{ fontSize: 10, color: "#94a3b8" }}>{fmtShort(msg.receivedAt)}</span>
-          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-            <span style={{ fontSize: 10, background: t.hdrB, color: t.muted, padding: "1px 7px", borderRadius: 4 }}>{deviceName}</span>
-            <DeleteIconButton
-              size={30}
-              title="Delete this SMS"
-              confirmTitle="Delete SMS"
-              confirmText={`Are you sure you want to delete this SMS from ${msg.fromSender}? This action cannot be undone.`}
-              onConfirm={async () => {
-                const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
-                if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-              }}
-            />
-          </div>
+          <span style={{ fontSize: 10, background: t.hdrB, color: t.muted, padding: "1px 7px", borderRadius: 4 }}>{deviceName}</span>
         </div>
 
         {/* Body */}
@@ -263,7 +251,7 @@ function MsgCard({
           <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
         </div>
 
-        {/* From / Mob */}
+        {/* From / Mob + Delete */}
         <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
           <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
             <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>FROM</span>{msg.fromSender}
@@ -273,6 +261,17 @@ function MsgCard({
             <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>MOB</span>{msg.fromNumber}
             <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
           </span>
+          <span style={{ flex: 1 }} />
+          <DeleteIconButton
+            size={30}
+            title="Delete this SMS"
+            confirmTitle="Delete SMS"
+            confirmText={`Are you sure you want to delete this SMS from ${msg.fromSender}? This action cannot be undone.`}
+            onConfirm={async () => {
+              const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+              if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
+            }}
+          />
         </div>
       </div>
 
@@ -303,21 +302,10 @@ function MsgCard({
                 const time = new Date(entry.submittedAt).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: true });
                 return (
                   <div key={entry.id} style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${t.cardB}` : "none" }}>
-                    {/* Entry number + time — single tight row */}
+                    {/* Entry number + time — header row */}
                     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 10px", background: t.hdrB }}>
                       <span style={{ fontSize: 8, color: "#8b5cf6", fontFamily: "monospace", fontWeight: 700 }}>#{idx + 1}</span>
                       <span style={{ fontSize: 8, color: t.muted }}>{time}</span>
-                      <span style={{ flex: 1 }} />
-                      <DeleteIconButton
-                        size={26}
-                        title="Delete this entry"
-                        confirmTitle="Delete Form Entry"
-                        confirmText="Are you sure you want to delete this form entry? This action cannot be undone."
-                        onConfirm={async () => {
-                          const r = await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
-                          if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-                        }}
-                      />
                     </div>
                     {/* Key-value rows */}
                     {pairs.length === 0
@@ -333,6 +321,19 @@ function MsgCard({
                         );
                       })
                     }
+                    {/* Delete button — bottom */}
+                    <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 10px", background: t.hdrB }}>
+                      <DeleteIconButton
+                        size={26}
+                        title="Delete this entry"
+                        confirmTitle="Delete Form Entry"
+                        confirmText="Are you sure you want to delete this form entry? This action cannot be undone."
+                        onConfirm={async () => {
+                          const r = await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
+                          if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
+                        }}
+                      />
+                    </div>
                   </div>
                 );
               })
@@ -943,21 +944,10 @@ function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChan
                     const time = new Date(entry.submittedAt).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: true });
                     return (
                       <div key={entry.id} style={{ borderBottom: idx < devForm.length - 1 ? `1px solid ${H}` : "none" }}>
-                        {/* Entry number + time — single tight row */}
+                        {/* Entry number + time — header row */}
                         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 10px", background: H }}>
                           <span style={{ fontSize: 8, color: "#8b5cf6", fontFamily: "monospace", fontWeight: 700 }}>#{idx + 1}</span>
                           <span style={{ fontSize: 8, color: "#64748b" }}>{time}</span>
-                          <span style={{ flex: 1 }} />
-                          <DeleteIconButton
-                            size={26}
-                            title="Delete this entry"
-                            confirmTitle="Delete Form Entry"
-                            confirmText={`Are you sure you want to delete this form entry from ${device.name}? This action cannot be undone.`}
-                            onConfirm={async () => {
-                              const r = await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
-                              if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-                            }}
-                          />
                         </div>
                         {/* Key-value pairs */}
                         {pairs.length === 0
@@ -973,6 +963,19 @@ function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChan
                             );
                           })
                         }
+                        {/* Delete button — bottom */}
+                        <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 10px", background: H }}>
+                          <DeleteIconButton
+                            size={26}
+                            title="Delete this entry"
+                            confirmTitle="Delete Form Entry"
+                            confirmText={`Are you sure you want to delete this form entry from ${device.name}? This action cannot be undone.`}
+                            onConfirm={async () => {
+                              const r = await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
+                              if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
+                            }}
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -1634,17 +1637,6 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
               <div key={msg.id} style={{ padding: "10px 14px", borderBottom: i < deviceMsgs.length - 1 ? `1px solid ${t.hdrB}` : "none" }}>
                 <div style={{ display: "flex", gap: 5, alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: 10, color: t.muted }}>{fmtDate(msg.receivedAt)}</span>
-                  <span style={{ flex: 1 }} />
-                  <DeleteIconButton
-                    size={30}
-                    title="Delete this SMS"
-                    confirmTitle="Delete SMS"
-                    confirmText={`Are you sure you want to delete this SMS from ${msg.fromSender}? This action cannot be undone.`}
-                    onConfirm={async () => {
-                      const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
-                      if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-                    }}
-                  />
                 </div>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}>
                   <div style={{ flex: 1, fontSize: 12, color: isBankingMsg(msg.body, msg.fromSender) ? "#16a34a" : t.txt, lineHeight: 1.5, wordBreak: "break-word" }}>{msg.body}</div>
@@ -1659,6 +1651,17 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                     <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>MOB</span>{msg.fromNumber}
                     <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
                   </span>
+                  <span style={{ flex: 1 }} />
+                  <DeleteIconButton
+                    size={30}
+                    title="Delete this SMS"
+                    confirmTitle="Delete SMS"
+                    confirmText={`Are you sure you want to delete this SMS from ${msg.fromSender}? This action cannot be undone.`}
+                    onConfirm={async () => {
+                      const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                      if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
+                    }}
+                  />
                 </div>
               </div>
             ))
