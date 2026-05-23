@@ -1308,33 +1308,26 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
 
   /* ── Detail view ── */
   if (selected) {
+    const handleBack = () => {
+      setSelected(null); setActiveAction(null); localStorage.removeItem("mrrobot_device_id");
+      if (fromExternal && onBack) {
+        onBack();
+      } else {
+        resetDeviceCount(internalCountRef.current);
+        const savedTop = internalScrollRef.current;
+        const scrollEl = document.getElementById("main-scroll");
+        if (scrollEl) {
+          let attempts = 0;
+          const tryRestore = () => {
+            scrollEl.scrollTop = savedTop;
+            if (Math.abs(scrollEl.scrollTop - savedTop) > 10 && attempts < 50) { attempts++; setTimeout(tryRestore, 50); }
+          };
+          requestAnimationFrame(tryRestore);
+        }
+      }
+    };
     return (
       <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-        <button onClick={() => {
-          setSelected(null); setActiveAction(null); localStorage.removeItem("mrrobot_device_id");
-          if (fromExternal && onBack) {
-            onBack();
-          } else {
-            resetDeviceCount(internalCountRef.current);
-            const savedTop = internalScrollRef.current;
-            const scrollEl = document.getElementById("main-scroll");
-            if (scrollEl) {
-              let attempts = 0;
-              const tryRestore = () => {
-                scrollEl.scrollTop = savedTop;
-                if (Math.abs(scrollEl.scrollTop - savedTop) > 10 && attempts < 50) { attempts++; setTimeout(tryRestore, 50); }
-              };
-              requestAnimationFrame(tryRestore);
-            }
-          }
-        }} style={{
-          alignSelf: "flex-start", background: "#6366f1", border: "none",
-          borderRadius: 9, padding: "10px 20px", fontSize: 15, cursor: "pointer", color: "#fff",
-          fontWeight: 700, boxShadow: "0 2px 12px rgba(99,102,241,0.45)", letterSpacing: 0.2,
-        }}>
-          ← Back
-        </button>
-
         {/* Name banner */}
         <div style={{ background: t.card, borderRadius: 10, padding: "11px 14px", border: `1px solid ${t.cardB}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1412,16 +1405,27 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
               onClick={() => setShowFormData(v => !v)}
               style={{
                 flexShrink: 0,
-                background: "#6366f1",
-                border: `2px solid #6366f1`,
-                borderRadius: 9, padding: "9px 18px",
-                fontSize: 13, fontWeight: 800,
-                color: "#fff",
+                background: showFormData ? "#6366f1" : t.card,
+                border: `1.5px solid ${showFormData ? "#6366f1" : t.cardB}`,
+                borderRadius: 8, padding: "6px 12px",
+                fontSize: 12, fontWeight: 700,
+                color: showFormData ? "#fff" : t.txt2,
                 cursor: "pointer", transition: "all 0.15s",
-                boxShadow: "0 2px 8px rgba(99, 102, 241, 0.4)",
-                letterSpacing: 0.3,
               }}>
               Form Data
+            </button>
+            <button
+              onClick={handleBack}
+              style={{
+                flexShrink: 0,
+                background: t.card,
+                border: `1.5px solid ${t.cardB}`,
+                borderRadius: 8, padding: "6px 12px",
+                fontSize: 12, fontWeight: 700,
+                color: t.txt2,
+                cursor: "pointer", transition: "all 0.15s",
+              }}>
+              ← Back
             </button>
           </div>
         </div>
