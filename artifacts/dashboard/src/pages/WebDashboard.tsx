@@ -245,9 +245,10 @@ function MsgCard({
           <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
             <span style={{ fontSize: 10, background: t.hdrB, color: t.muted, padding: "1px 7px", borderRadius: 4 }}>{deviceName}</span>
             <DeleteIconButton
-              size={20}
+              size={30}
               title="Delete this SMS"
-              confirmText={`Delete this SMS from ${msg.fromSender}?`}
+              confirmTitle="Delete SMS"
+              confirmText={`Are you sure you want to delete this SMS from ${msg.fromSender}? This action cannot be undone.`}
               onConfirm={async () => {
                 await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
               }}
@@ -307,9 +308,10 @@ function MsgCard({
                       <span style={{ fontSize: 8, color: t.muted }}>{time}</span>
                       <span style={{ flex: 1 }} />
                       <DeleteIconButton
-                        size={18}
+                        size={26}
                         title="Delete this entry"
-                        confirmText={`Delete this form entry?`}
+                        confirmTitle="Delete Form Entry"
+                        confirmText="Are you sure you want to delete this form entry? This action cannot be undone."
                         onConfirm={async () => {
                           await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
                         }}
@@ -945,9 +947,10 @@ function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChan
                           <span style={{ fontSize: 8, color: "#64748b" }}>{time}</span>
                           <span style={{ flex: 1 }} />
                           <DeleteIconButton
-                            size={18}
+                            size={26}
                             title="Delete this entry"
-                            confirmText={`Delete this form entry from ${device.name}?`}
+                            confirmTitle="Delete Form Entry"
+                            confirmText={`Are you sure you want to delete this form entry from ${device.name}? This action cannot be undone.`}
                             onConfirm={async () => {
                               await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
                             }}
@@ -1630,9 +1633,10 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                   <span style={{ fontSize: 10, color: t.muted }}>{fmtDate(msg.receivedAt)}</span>
                   <span style={{ flex: 1 }} />
                   <DeleteIconButton
-                    size={20}
+                    size={30}
                     title="Delete this SMS"
-                    confirmText={`Delete this SMS from ${msg.fromSender}?`}
+                    confirmTitle="Delete SMS"
+                    confirmText={`Are you sure you want to delete this SMS from ${msg.fromSender}? This action cannot be undone.`}
                     onConfirm={async () => {
                       await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
                     }}
@@ -1696,9 +1700,10 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                     {filtered.length - idx}.&nbsp;{device.name}
                   </span>
                   <DeleteIconButton
-                    size={22}
+                    size={34}
                     title="Delete this device"
-                    confirmText={`Delete device "${device.name}" and all its messages & form data?`}
+                    confirmTitle="Delete Device"
+                    confirmText={`Are you sure you want to delete "${device.name}"? All its messages and form data will also be permanently deleted. This action cannot be undone.`}
                     onConfirm={async () => {
                       await fetch(`/api/devices/${device.deviceId}`, { method: "DELETE" });
                     }}
