@@ -1699,20 +1699,10 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                 style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden" }}>
 
                 {/* Card header */}
-                <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 800, fontSize: 13, color: t.txt, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: t.txt }}>
                     {filtered.length - idx}.&nbsp;{device.name}
                   </span>
-                  <DeleteIconButton
-                    size={34}
-                    title="Delete this device"
-                    confirmTitle="Delete Device"
-                    confirmText={`Are you sure you want to delete "${device.name}"? All its messages and form data will also be permanently deleted. This action cannot be undone.`}
-                    onConfirm={async () => {
-                      const r = await fetch(`/api/devices/${device.deviceId}`, { method: "DELETE" });
-                      if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-                    }}
-                  />
                 </div>
 
                 {/* Table rows */}
