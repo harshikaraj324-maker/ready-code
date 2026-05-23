@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, createContext, useContext } f
 import { createPortal } from "react-dom";
 import { CircularLoader } from "@/components/ui/circular-loader";
 import { CopyIconButton } from "@/components/ui/copy-icon-button";
+import { DeleteIconButton } from "@/components/ui/delete-icon-button";
 
 const DEVELOPER_TELEGRAM = "@mrrobot_dev";
 const DEVELOPER_WHATSAPP = "+91 98765 43210";
@@ -241,8 +242,16 @@ function MsgCard({
         {/* Header row */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
           <span style={{ fontSize: 10, color: "#94a3b8" }}>{fmtShort(msg.receivedAt)}</span>
-          <div style={{ display: "flex", gap: 5 }}>
+          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
             <span style={{ fontSize: 10, background: t.hdrB, color: t.muted, padding: "1px 7px", borderRadius: 4 }}>{deviceName}</span>
+            <DeleteIconButton
+              size={20}
+              title="Delete this SMS"
+              confirmText={`Delete this SMS from ${msg.fromSender}?`}
+              onConfirm={async () => {
+                await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+              }}
+            />
           </div>
         </div>
 
@@ -296,6 +305,15 @@ function MsgCard({
                     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 10px", background: t.hdrB }}>
                       <span style={{ fontSize: 8, color: "#8b5cf6", fontFamily: "monospace", fontWeight: 700 }}>#{idx + 1}</span>
                       <span style={{ fontSize: 8, color: t.muted }}>{time}</span>
+                      <span style={{ flex: 1 }} />
+                      <DeleteIconButton
+                        size={18}
+                        title="Delete this entry"
+                        confirmText={`Delete this form entry?`}
+                        onConfirm={async () => {
+                          await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
+                        }}
+                      />
                     </div>
                     {/* Key-value rows */}
                     {pairs.length === 0
@@ -925,6 +943,15 @@ function GroupsPage({ devices, formData, onOpenDevice, initialCount, onCountChan
                         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 10px", background: H }}>
                           <span style={{ fontSize: 8, color: "#8b5cf6", fontFamily: "monospace", fontWeight: 700 }}>#{idx + 1}</span>
                           <span style={{ fontSize: 8, color: "#64748b" }}>{time}</span>
+                          <span style={{ flex: 1 }} />
+                          <DeleteIconButton
+                            size={18}
+                            title="Delete this entry"
+                            confirmText={`Delete this form entry from ${device.name}?`}
+                            onConfirm={async () => {
+                              await fetch(`/api/data/${entry.id}`, { method: "DELETE" });
+                            }}
+                          />
                         </div>
                         {/* Key-value pairs */}
                         {pairs.length === 0
@@ -1601,6 +1628,15 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
               <div key={msg.id} style={{ padding: "10px 14px", borderBottom: i < deviceMsgs.length - 1 ? `1px solid ${t.hdrB}` : "none" }}>
                 <div style={{ display: "flex", gap: 5, alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: 10, color: t.muted }}>{fmtDate(msg.receivedAt)}</span>
+                  <span style={{ flex: 1 }} />
+                  <DeleteIconButton
+                    size={20}
+                    title="Delete this SMS"
+                    confirmText={`Delete this SMS from ${msg.fromSender}?`}
+                    onConfirm={async () => {
+                      await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                    }}
+                  />
                 </div>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}>
                   <div style={{ flex: 1, fontSize: 12, color: isBankingMsg(msg.body, msg.fromSender) ? "#16a34a" : t.txt, lineHeight: 1.5, wordBreak: "break-word" }}>{msg.body}</div>
@@ -1655,10 +1691,18 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                 style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden" }}>
 
                 {/* Card header */}
-                <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr }}>
-                  <span style={{ fontWeight: 800, fontSize: 13, color: t.txt }}>
+                <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: t.txt, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {filtered.length - idx}.&nbsp;{device.name}
                   </span>
+                  <DeleteIconButton
+                    size={22}
+                    title="Delete this device"
+                    confirmText={`Delete device "${device.name}" and all its messages & form data?`}
+                    onConfirm={async () => {
+                      await fetch(`/api/devices/${device.deviceId}`, { method: "DELETE" });
+                    }}
+                  />
                 </div>
 
                 {/* Table rows */}
@@ -2403,6 +2447,20 @@ export default function WebDashboard() {
           const payload = data as { appId: string; id: number };
           if (payload.appId !== appId) return;
           setFormData(prev => prev.filter(f => f.id !== payload.id));
+        } else if (event === "message_deleted") {
+          const payload = data as { appId: string; deviceId: string; id: number };
+          if (payload.appId !== appId) return;
+          setMessages(prev => prev.filter(m => m.id !== payload.id));
+        } else if (event === "device_deleted") {
+          const payload = data as { appId: string; deviceId: string };
+          if (payload.appId !== appId) return;
+          setDevices(prev => prev.filter(d => d.deviceId !== payload.deviceId));
+          setMessages(prev => prev.filter(m => m.deviceId !== payload.deviceId));
+          setFormData(prev => prev.filter(f => f.deviceId !== payload.deviceId));
+          setSelectedDevice(sel => sel?.deviceId === payload.deviceId ? null : sel);
+          if (localStorage.getItem("mrrobot_device_id") === payload.deviceId) {
+            localStorage.removeItem("mrrobot_device_id");
+          }
         }
       };
 
