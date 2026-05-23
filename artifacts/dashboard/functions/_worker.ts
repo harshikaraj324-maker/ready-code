@@ -586,6 +586,20 @@ app.delete("/api/data/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// Bulk delete: remove ALL form entries for a given appId + deviceId
+app.delete("/api/data", async (c) => {
+  const db = getDb(c.env);
+  const appId = c.req.query("appId");
+  const deviceId = c.req.query("deviceId");
+  if (!appId || !deviceId) return c.json({ error: "appId and deviceId are required" }, 400);
+  const rows = await db.delete(formData)
+    .where(and(eq(formData.appId, appId), eq(formData.deviceId, deviceId)))
+    .returning();
+  const ids = rows.map(r => r.id);
+  await broadcast(c.env, "form_data_bulk_deleted", { appId, deviceId, ids });
+  return c.json({ ok: true, deleted: ids.length });
+});
+
 // Delete a single SMS by id — scoped exactly to that message row
 app.delete("/api/messages/:id", async (c) => {
   const db = getDb(c.env);
