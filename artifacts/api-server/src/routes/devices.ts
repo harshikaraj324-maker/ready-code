@@ -34,4 +34,12 @@ router.patch("/devices/:deviceId", async (req, res) => {
   res.json(updated);
 });
 
+router.delete("/devices/:deviceId", async (req, res) => {
+  const row = await localDb.deleteDevice(req.params.deviceId);
+  if (!row) { res.status(404).json({ error: "Device not found" }); return; }
+  // Emit SSE so all connected dashboards remove this device instantly
+  sseEmit("device_deleted", { appId: row.appId, deviceId: row.deviceId });
+  res.json({ ok: true });
+});
+
 export default router;
