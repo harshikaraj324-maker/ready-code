@@ -20,6 +20,7 @@ export function DeleteIconButton({
   const [hover, setHover] = useState(false);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -32,18 +33,21 @@ export function DeleteIconButton({
     e.stopPropagation();
     e.preventDefault();
     if (busy) return;
+    setError(null);
     setOpen(true);
   }
 
   async function handleConfirm(e: React.MouseEvent) {
     e.stopPropagation();
     if (busy) return;
+    setError(null);
     setBusy(true);
     try {
       await onConfirm();
       setOpen(false);
-    } catch {
-      // keep dialog open on error
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Delete failed. Please try again.";
+      setError(msg);
     } finally {
       setBusy(false);
     }
@@ -52,6 +56,7 @@ export function DeleteIconButton({
   function handleCancel(e: React.MouseEvent) {
     e.stopPropagation();
     if (busy) return;
+    setError(null);
     setOpen(false);
   }
 
@@ -132,6 +137,16 @@ export function DeleteIconButton({
               <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.55 }}>
                 {confirmText}
               </div>
+              {error && (
+                <div style={{
+                  marginTop: 12, padding: "8px 12px",
+                  background: "#fef2f2", border: "1px solid #fecaca",
+                  borderRadius: 8, fontSize: 12, color: "#b91c1c",
+                  textAlign: "left", fontWeight: 600,
+                }}>
+                  ⚠ {error}
+                </div>
+              )}
             </div>
 
             {/* Buttons */}
@@ -170,7 +185,7 @@ export function DeleteIconButton({
                 onMouseEnter={e => { if (!busy) (e.currentTarget as HTMLButtonElement).style.background = "#b91c1c"; }}
                 onMouseLeave={e => { if (!busy) (e.currentTarget as HTMLButtonElement).style.background = "#dc2626"; }}
               >
-                {busy ? "Deleting…" : "Yes, Delete"}
+                {busy ? "Deleting…" : error ? "Try Again" : "Yes, Delete"}
               </button>
             </div>
           </div>
