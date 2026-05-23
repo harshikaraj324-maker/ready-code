@@ -1407,8 +1407,8 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                 flexShrink: 0,
                 background: showFormData ? "#6366f1" : t.card,
                 border: `1.5px solid ${showFormData ? "#6366f1" : t.cardB}`,
-                borderRadius: 8, padding: "6px 12px",
-                fontSize: 12, fontWeight: 700,
+                borderRadius: 8, padding: "8px 14px",
+                fontSize: 13, fontWeight: 700,
                 color: showFormData ? "#fff" : t.txt2,
                 cursor: "pointer", transition: "all 0.15s",
               }}>
@@ -1418,12 +1418,14 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
               onClick={handleBack}
               style={{
                 flexShrink: 0,
-                background: t.card,
-                border: `1.5px solid ${t.cardB}`,
-                borderRadius: 8, padding: "6px 12px",
-                fontSize: 12, fontWeight: 700,
-                color: t.txt2,
+                background: "#6366f1",
+                border: `1.5px solid #6366f1`,
+                borderRadius: 8, padding: "8px 14px",
+                fontSize: 13, fontWeight: 800,
+                color: "#fff",
                 cursor: "pointer", transition: "all 0.15s",
+                boxShadow: "0 2px 10px rgba(99,102,241,0.5)",
+                letterSpacing: 0.3,
               }}>
               ← Back
             </button>
