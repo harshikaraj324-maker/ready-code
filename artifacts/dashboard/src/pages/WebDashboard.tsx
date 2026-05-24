@@ -179,7 +179,6 @@ function mkAdminUpdate(did: string, number: string, status: "on" | "off"): Recor
   if (status === "on") return { type: "admin_update", status: "on", number, deviceId: did, fromAdmin: "true", messageId: "admin_upd_" + ts, timestamp: ts };
   return { type: "admin_update", status: "off", deviceId: did, fromAdmin: "true", messageId: "admin_upd_" + ts, timestamp: ts };
 }
-}
 
 /* ─── Banking / OTP keyword detector ─── */
 // Junk fromSender values from old APK versions where `title` was sent instead
