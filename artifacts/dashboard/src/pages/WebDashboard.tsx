@@ -2154,7 +2154,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
       <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
         <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.hdrB}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ fontWeight: 800, fontSize: 13, color: t.txt }}>Admin Sessions</div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: t.txt }}>Sessions for {appId}</div>
             <div style={{ background: sessions.length > 0 ? "#6366f1" : "#e2e8f0", color: sessions.length > 0 ? "#fff" : "#94a3b8", borderRadius: 99, padding: "1px 7px", fontSize: 10, fontWeight: 800 }}>
               {sessions.length}
             </div>
