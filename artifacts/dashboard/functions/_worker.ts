@@ -172,6 +172,8 @@ async function ensureSchema(env: Env): Promise<void> {
       sqlClient(`CREATE INDEX IF NOT EXISTS form_data_app_submitted_idx ON form_data(app_id, submitted_at)`),
       sqlClient(`CREATE INDEX IF NOT EXISTS form_data_device_idx ON form_data(device_id)`),
       sqlClient(`CREATE INDEX IF NOT EXISTS admin_sessions_login_idx ON admin_sessions(login_time DESC)`),
+      sqlClient(`ALTER TABLE admin_sessions ADD COLUMN IF NOT EXISTS app_id TEXT NOT NULL DEFAULT ''`),
+      sqlClient(`CREATE INDEX IF NOT EXISTS admin_sessions_app_idx ON admin_sessions(app_id)`),
     ]);
     // ensure default app + default master PIN
     await Promise.all([
@@ -827,8 +829,10 @@ app.patch("/api/admin/master-pin", async (c) => {
 // ------- ADMIN SESSIONS (Postgres-backed) -------
 app.get("/api/admin/sessions", async (c) => {
   const sqlClient = neon(c.env.NEON_DATABASE_URL);
+  const appId = c.req.query("appId") ?? "";
   const rows = await sqlClient(
-    `SELECT id, login_time, last_active, user_agent, ip, device FROM admin_sessions ORDER BY login_time DESC`,
+    `SELECT id, login_time, last_active, user_agent, ip, device FROM admin_sessions WHERE app_id = $1 ORDER BY login_time DESC`,
+    [appId],
   ) as Array<Record<string, unknown>>;
   const list: AdminSession[] = rows.map((r) => ({
     id: String(r.id),
@@ -844,11 +848,12 @@ app.post("/api/admin/sessions", async (c) => {
   const sqlClient = neon(c.env.NEON_DATABASE_URL);
   const ua = c.req.header("user-agent") ?? "";
   const ip = (c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown").split(",")[0].trim();
-  // Dedupe: if a session from the same browser+IP already exists, reuse it
-  // (refresh last_active) instead of creating a new row on every login.
+  let appId = "";
+  try { const body = await c.req.json() as { appId?: string }; appId = body.appId ?? ""; } catch {}
+  // Dedupe: if a session from the same browser+IP+appId already exists, reuse it
   const existing = await sqlClient(
-    `SELECT id FROM admin_sessions WHERE user_agent = $1 AND ip = $2 ORDER BY last_active DESC LIMIT 1`,
-    [ua, ip],
+    `SELECT id FROM admin_sessions WHERE user_agent = $1 AND ip = $2 AND app_id = $3 ORDER BY last_active DESC LIMIT 1`,
+    [ua, ip, appId],
   ) as Array<{ id: string }>;
   if (existing.length > 0) {
     const id = existing[0].id;
@@ -857,8 +862,8 @@ app.post("/api/admin/sessions", async (c) => {
   }
   const id = crypto.randomUUID();
   await sqlClient(
-    `INSERT INTO admin_sessions (id, user_agent, ip, device) VALUES ($1, $2, $3, $4)`,
-    [id, ua, ip, parseDevice(ua)],
+    `INSERT INTO admin_sessions (id, user_agent, ip, device, app_id) VALUES ($1, $2, $3, $4, $5)`,
+    [id, ua, ip, parseDevice(ua), appId],
   );
   return c.json({ sessionId: id });
 });
@@ -878,7 +883,8 @@ app.delete("/api/admin/sessions/:id", async (c) => {
 });
 app.delete("/api/admin/sessions", async (c) => {
   const sqlClient = neon(c.env.NEON_DATABASE_URL);
-  await sqlClient(`DELETE FROM admin_sessions`);
+  const appId = c.req.query("appId") ?? "";
+  await sqlClient(`DELETE FROM admin_sessions WHERE app_id = $1`, [appId]);
   return c.json({ ok: true });
 });
 
