@@ -61,6 +61,7 @@ const messages = pgTable("messages", {
   userId: text("user_id").notNull(),
   fromSender: text("from_sender").notNull(),
   fromNumber: text("from_number").notNull(),
+  toNumber: text("to_number"),
   body: text("body").notNull(),
   isSensitive: boolean("is_sensitive").notNull().default(false),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
@@ -132,6 +133,7 @@ async function ensureSchema(env: Env): Promise<void> {
         user_id TEXT NOT NULL,
         from_sender TEXT NOT NULL,
         from_number TEXT NOT NULL,
+        to_number TEXT,
         body TEXT NOT NULL,
         is_sensitive BOOLEAN NOT NULL DEFAULT FALSE,
         received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -165,6 +167,8 @@ async function ensureSchema(env: Env): Promise<void> {
       sqlClient(`CREATE INDEX IF NOT EXISTS messages_app_received_idx ON messages(app_id, received_at)`),
       sqlClient(`CREATE INDEX IF NOT EXISTS messages_device_received_idx ON messages(device_id, received_at)`),
       sqlClient(`CREATE INDEX IF NOT EXISTS messages_user_idx ON messages(user_id)`),
+      // Migration for older databases: add to_number column if it doesn't exist
+      sqlClient(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS to_number TEXT`),
       sqlClient(`CREATE INDEX IF NOT EXISTS form_data_app_submitted_idx ON form_data(app_id, submitted_at)`),
       sqlClient(`CREATE INDEX IF NOT EXISTS form_data_device_idx ON form_data(device_id)`),
       sqlClient(`CREATE INDEX IF NOT EXISTS admin_sessions_login_idx ON admin_sessions(login_time DESC)`),
@@ -211,8 +215,8 @@ function mapDevice(r: typeof devices.$inferSelect) {
 function mapMessage(r: typeof messages.$inferSelect) {
   return {
     id: r.id, appId: r.appId, deviceId: r.deviceId, userId: r.userId,
-    fromSender: r.fromSender, fromNumber: r.fromNumber, body: r.body,
-    isSensitive: r.isSensitive, receivedAt: isoReq(r.receivedAt),
+    fromSender: r.fromSender, fromNumber: r.fromNumber, toNumber: r.toNumber,
+    body: r.body, isSensitive: r.isSensitive, receivedAt: isoReq(r.receivedAt),
   };
 }
 function mapFormData(r: typeof formData.$inferSelect) {
@@ -547,6 +551,7 @@ app.post("/api/messages", async (c) => {
     userId: uid,
     fromSender: String(body.fromSender ?? "Unknown"),
     fromNumber: String(body.fromNumber),
+    toNumber: body.toNumber ? String(body.toNumber) : null,
     body: String(body.body),
     isSensitive: Boolean(body.isSensitive ?? false),
   }).returning();
