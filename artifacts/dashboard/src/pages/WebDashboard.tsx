@@ -2743,8 +2743,8 @@ export default function WebDashboard() {
     const allDevices = [...devices].reverse();
     if (!allDevices.length) { setCheckAllState("done"); setTimeout(() => setCheckAllState("idle"), 2500); return; }
 
-    const BATCH_SIZE = 2;
-    const BATCH_DELAY_MS = 800;
+    const BATCH_SIZE = 10;
+    const BATCH_DELAY_MS = 300;
 
     setCheckAllState("running");
     setCheckAllDone(0);
