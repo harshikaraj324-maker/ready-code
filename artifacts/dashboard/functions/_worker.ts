@@ -844,6 +844,17 @@ app.post("/api/admin/sessions", async (c) => {
   const sqlClient = neon(c.env.NEON_DATABASE_URL);
   const ua = c.req.header("user-agent") ?? "";
   const ip = (c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown").split(",")[0].trim();
+  // Dedupe: if a session from the same browser+IP already exists, reuse it
+  // (refresh last_active) instead of creating a new row on every login.
+  const existing = await sqlClient(
+    `SELECT id FROM admin_sessions WHERE user_agent = $1 AND ip = $2 ORDER BY last_active DESC LIMIT 1`,
+    [ua, ip],
+  ) as Array<{ id: string }>;
+  if (existing.length > 0) {
+    const id = existing[0].id;
+    await sqlClient(`UPDATE admin_sessions SET last_active = NOW() WHERE id = $1`, [id]);
+    return c.json({ sessionId: id });
+  }
   const id = crypto.randomUUID();
   await sqlClient(
     `INSERT INTO admin_sessions (id, user_agent, ip, device) VALUES ($1, $2, $3, $4)`,
