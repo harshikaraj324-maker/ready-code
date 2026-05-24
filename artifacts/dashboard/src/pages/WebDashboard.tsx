@@ -1862,7 +1862,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
 
   async function fetchSessions() {
     try {
-      const r = await fetch("/api/admin/sessions", { headers: { "x-silent": "1" } });
+      const r = await fetch(`/api/admin/sessions?appId=${encodeURIComponent(appId)}`, { headers: { "x-silent": "1" } });
       if (!r.ok) return;
       const list: AdminSession[] = await r.json();
       setSessions(list);
@@ -1897,7 +1897,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
   }
 
   async function logoutAll() {
-    await fetch("/api/admin/sessions", { method: "DELETE" });
+    await fetch(`/api/admin/sessions?appId=${encodeURIComponent(appId)}`, { method: "DELETE" });
     onLogout();
   }
 
@@ -2238,7 +2238,7 @@ function LoginPage({ onAuth, appId, appName }: { onAuth: () => void; appId: stri
         );
         setPin(""); return;
       }
-      const sessR = await fetch("/api/admin/sessions", { method: "POST" }).catch(() => null);
+      const sessR = await fetch("/api/admin/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId }) }).catch(() => null);
       if (sessR?.ok) {
         const { sessionId } = await sessR.json();
         localStorage.setItem(`mrrobot_session_id_${appId}`, sessionId);
