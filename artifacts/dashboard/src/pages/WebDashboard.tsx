@@ -2433,7 +2433,14 @@ export default function WebDashboard() {
     let misses = 0;
     async function pingSession() {
       const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
-      if (!sid) return;
+      if (!sid) {
+          // Already logged in but no session tracked — create one (handles old-code logins)
+          fetch("/api/admin/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId }) })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data?.sessionId) localStorage.setItem(`mrrobot_session_id_${appId}`, data.sessionId); })
+            .catch(() => {});
+          return;
+        }
       try {
         const r = await fetch(`/api/admin/sessions/${sid}/ping`, {
           method: "PATCH",
