@@ -33,5 +33,6 @@ import { existsSync, readFileSync } from "fs";
     port: Number(process.env.PORT ?? 5000),
     nodeEnv: process.env.NODE_ENV ?? "production",
     appSecret: process.env.APP_SECRET ?? "",
+    proxyTarget: process.env.PROXY_TARGET ?? "https://mr-robot-5s3.pages.dev/api",
   };
   
