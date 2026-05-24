@@ -1879,6 +1879,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
         missCountRef.current = 0;
       }
     } catch { /* ignore */ } finally { setSessLoading(false); }
+  }
 
   async function logoutSession(id: string) {
     await fetch(`/api/admin/sessions/${id}`, { method: "DELETE" });
