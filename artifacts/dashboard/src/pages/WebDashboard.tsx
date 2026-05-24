@@ -230,9 +230,10 @@ const MsgCard = React.memo(function MsgCard({
   return (
     <div id={`msg-${msg.id}`} style={{
       borderRadius: 8, overflow: "hidden", border: `1px solid ${t.cardB}`,
-      // GPU skips offscreen card paint/layout → buttery scroll with thousands of cards
+      // GPU skips offscreen card paint/layout → buttery scroll with thousands of cards.
+      // `auto 140px` = remember each card's last-rendered height so pixel-scroll restore stays accurate.
       contentVisibility: "auto",
-      containIntrinsicSize: "0 140px",
+      containIntrinsicSize: "auto 140px",
     } as React.CSSProperties}>
       <div
         onClick={cardClickable && device ? handleCardClick : undefined}
