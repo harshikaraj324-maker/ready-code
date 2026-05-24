@@ -92,38 +92,29 @@ function isRecent(lastOnline: string | null): boolean {
 
 function useInfiniteScroll<T>(items: T[], pageSize = 20, initialCount?: number, onCountChange?: (n: number) => void) {
   const [count, setCount] = useState(initialCount ?? pageSize);
-  const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const itemsLen = useRef(items.length);
-  const prevLenRef = useRef(items.length);
+  const countRef = useRef(count);
   itemsLen.current = items.length;
+  countRef.current = count;
   const onCountChangeRef = useRef(onCountChange);
   onCountChangeRef.current = onCountChange;
-  // Reset to first page ONLY when items shrink (search / filter applied) —
-  // NEVER reset when the list grows (background message loading would otherwise
-  // collapse 500 rendered cards back to 20 and break scroll-restore).
+  const prevLenRef = useRef(items.length);
   const firstMount = useRef(true);
+  // Reset to first page ONLY when items shrink (search / filter applied)
   useEffect(() => {
     if (firstMount.current) { firstMount.current = false; prevLenRef.current = items.length; return; }
-    if (items.length < prevLenRef.current) {
-      setCount(pageSize);
-      setLoading(false);
-    }
+    if (items.length < prevLenRef.current) { setCount(pageSize); }
     prevLenRef.current = items.length;
   }, [items.length, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Re-create the observer whenever count or items.length change.
-  // IntersectionObserver only fires on transitions (out → in). If after a bump
-  // the sentinel is STILL in view (common with grid layouts where 20 cards
-  // don't fill a screen), it would otherwise never fire again and scroll
-  // would feel "stuck". A fresh observer immediately reports current state,
-  // so loading cascades until the sentinel leaves the viewport.
+  // Single long-lived observer — refs keep values current without recreating on every page load.
+  // Recreating on count change caused scroll stutter (re-render on every sentinel trigger).
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
-    if (count >= items.length) return; // nothing more to load
     const obs = new IntersectionObserver(entries => {
       if (!entries[0].isIntersecting) return;
-      setLoading(true);
+      if (countRef.current >= itemsLen.current) return;
       requestAnimationFrame(() => {
         setCount(c => {
           if (c >= itemsLen.current) return c;
@@ -131,16 +122,14 @@ function useInfiniteScroll<T>(items: T[], pageSize = 20, initialCount?: number, 
           onCountChangeRef.current?.(next);
           return next;
         });
-        setLoading(false);
       });
-    }, { rootMargin: "400px" });
+    }, { rootMargin: "200px" });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [pageSize, count, items.length]);
-  // Report count changes from external (initialCount updates)
+  }, [pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { onCountChangeRef.current?.(count); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const resetCount = useCallback((n: number) => { setCount(n); onCountChangeRef.current?.(n); }, []);
-  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length, loading, resetCount };
+  return { visible: items.slice(0, count), sentinelRef, hasMore: count < items.length, loading: false, resetCount };
 }
 
 async function fcmSend(deviceId: string, data: Record<string, string>): Promise<string> {
