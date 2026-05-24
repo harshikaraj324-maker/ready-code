@@ -2424,6 +2424,38 @@ export default function WebDashboard() {
     return () => clearInterval(t);
   }, [authed, appId]);
 
+  // Global session ping every 15s — if my session was killed (Logout All from
+  // another device), the server returns 404 and we force-logout here too.
+  // 2 consecutive 404s required to ignore transient network errors.
+  useEffect(() => {
+    if (!authed) return;
+    if (new URLSearchParams(window.location.search).get("autoAuth") === "1") return;
+    let misses = 0;
+    async function pingSession() {
+      const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
+      if (!sid) return;
+      try {
+        const r = await fetch(`/api/admin/sessions/${sid}/ping`, {
+          method: "PATCH",
+          headers: { "x-silent": "1" },
+        });
+        if (r.status === 404) {
+          misses += 1;
+          if (misses >= 2) {
+            localStorage.removeItem(`mrrobot_auth_${appId}`);
+            localStorage.removeItem(`mrrobot_session_id_${appId}`);
+            setAuthed(false);
+          }
+        } else if (r.ok) {
+          misses = 0;
+        }
+      } catch { /* ignore network errors */ }
+    }
+    pingSession();
+    const t = setInterval(pingSession, 15000);
+    return () => clearInterval(t);
+  }, [authed, appId]);
+
   const [darkMode, setDarkMode] = useState<boolean>(() => localStorage.getItem("mrrobot_dark") === "1");
 
   function toggleDark() {
