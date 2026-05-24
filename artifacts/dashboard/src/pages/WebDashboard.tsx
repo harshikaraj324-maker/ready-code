@@ -172,7 +172,6 @@ function mkDeviceCmd(uid: string, action: string, extra?: Record<string, unknown
   };
   return { type: action, uniqueid: uid, fromAdmin: "true", timestamp: ts };
 }
-}
 /** admin_update → Android: setAdminNumber / toggle admin status (NO call, NO sim) */
 function mkAdminUpdate(did: string, number: string, status: "on" | "off"): Record<string, string> {
   const ts = String(Date.now());
