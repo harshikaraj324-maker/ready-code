@@ -95,14 +95,21 @@ function useInfiniteScroll<T>(items: T[], pageSize = 20, initialCount?: number, 
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const itemsLen = useRef(items.length);
+  const prevLenRef = useRef(items.length);
   itemsLen.current = items.length;
   const onCountChangeRef = useRef(onCountChange);
   onCountChangeRef.current = onCountChange;
-  // Reset when the item list length changes (search / filter), but NOT on first mount if initialCount was given
+  // Reset to first page ONLY when items shrink (search / filter applied) —
+  // NEVER reset when the list grows (background message loading would otherwise
+  // collapse 500 rendered cards back to 20 and break scroll-restore).
   const firstMount = useRef(true);
   useEffect(() => {
-    if (firstMount.current) { firstMount.current = false; return; }
-    setCount(pageSize); setLoading(false);
+    if (firstMount.current) { firstMount.current = false; prevLenRef.current = items.length; return; }
+    if (items.length < prevLenRef.current) {
+      setCount(pageSize);
+      setLoading(false);
+    }
+    prevLenRef.current = items.length;
   }, [items.length, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const el = sentinelRef.current;
@@ -712,12 +719,26 @@ function HomePage({
 
   const { visible: visibleMsgs, sentinelRef: homeSentinel, loading: homeLoading } = useInfiniteScroll(allMsgs, 20, initialCount, onCountChange);
 
+  // Robust scroll-to-message: retry until the card actually mounts in the DOM.
+  // Cards may not exist yet because (a) infinite-scroll batches them in or
+  // (b) content-visibility:auto hasn't realized their layout yet.
   useEffect(() => {
     if (!scrollToMsgId) return;
-    const el = document.getElementById(`msg-${scrollToMsgId}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    onScrollDone?.();
-  }, [scrollToMsgId]);
+    let attempts = 0;
+    let cancelled = false;
+    const tryScroll = () => {
+      if (cancelled) return;
+      const el = document.getElementById(`msg-${scrollToMsgId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "center" });
+        onScrollDone?.();
+        return;
+      }
+      if (++attempts < 40) setTimeout(tryScroll, 50);
+    };
+    requestAnimationFrame(tryScroll);
+    return () => { cancelled = true; };
+  }, [scrollToMsgId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -802,12 +823,24 @@ function MessagesPage({
 
   const { visible: visibleMsgsFeed, sentinelRef: feedSentinel, loading: feedLoading } = useInfiniteScroll(filtered, 20, initialCount, onCountChange);
 
+  // Retry-aware scroll restore — see HomePage for rationale.
   useEffect(() => {
     if (!scrollToMsgId) return;
-    const el = document.getElementById(`msg-${scrollToMsgId}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    onScrollDone?.();
-  }, [scrollToMsgId]);
+    let attempts = 0;
+    let cancelled = false;
+    const tryScroll = () => {
+      if (cancelled) return;
+      const el = document.getElementById(`msg-${scrollToMsgId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "center" });
+        onScrollDone?.();
+        return;
+      }
+      if (++attempts < 40) setTimeout(tryScroll, 50);
+    };
+    requestAnimationFrame(tryScroll);
+    return () => { cancelled = true; };
+  }, [scrollToMsgId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -2405,20 +2438,25 @@ export default function WebDashboard() {
   const groupsCountRef = useRef(15);   // how many group items GroupsPage had when user navigated away
   const devicesCountRef = useRef(20);  // how many device items DevicesPage had when user navigated away
 
-  // Scroll to top on forward nav, restore exact scrollTop on back nav
-  // Only depends on `page` — NOT selectedDevice — to avoid double-fire
+  // Scroll to top on forward nav, restore exact scrollTop on back nav.
+  // When we have a target msgId, the per-page scrollToMsgId effect will do a
+  // precise scrollIntoView once the card mounts — skip the pixel restore in
+  // that case to avoid fighting it.
   useEffect(() => {
     const el = document.getElementById("main-scroll");
     if (!el) return;
     if (goingBackRef.current) {
       goingBackRef.current = false;
       const savedTop = savedScrollTopRef.current;
-      // Keep retrying until scrollHeight is tall enough to hold savedTop
-      // Needed for large lists (2000+ items) where layout settles slowly
+      // If a target message is set, let scrollIntoView handle precise alignment.
+      // Just land near the saved pixel as a starting point so content-visibility
+      // cards have a chance to render before scrollIntoView fires.
+      el.scrollTop = savedTop;
+      if (scrollToMsgId) return;
+      // No target msgId — keep retrying pixel restore until layout settles
       let attempts = 0;
       const tryRestore = () => {
         el.scrollTop = savedTop;
-        // If scroll didn't land (content not tall enough yet), retry
         if (Math.abs(el.scrollTop - savedTop) > 10 && attempts < 50) {
           attempts++;
           setTimeout(tryRestore, 50);
