@@ -737,7 +737,7 @@ function HomePage({
 
       {/* ── Recent Messages ── */}
       <div style={{ fontWeight: 800, fontSize: 13, color: t.txt, padding: "2px 2px 0" }}>
-        Recent Messages <span style={{ fontWeight: 400, fontSize: 11, color: t.muted }}>({allMsgs.length})</span>
+        Recent Messages
       </div>
       {allMsgs.length === 0
         ? <div style={{ textAlign: "center", color: "#94a3b8", padding: 24, fontSize: 12 }}>{search ? "No messages found" : "No messages yet"}</div>
@@ -824,7 +824,6 @@ function MessagesPage({
           fontSize: 11, fontWeight: 600, cursor: "pointer",
         }}>Sensitive</button>
       </div>
-      <div style={{ fontSize: 11, color: t.muted }}>{filtered.length} messages</div>
       {filtered.length === 0
         ? <div style={{ textAlign: "center", color: "#94a3b8", padding: 32, fontSize: 13 }}>No messages found</div>
         : visibleMsgsFeed.map(msg => {
