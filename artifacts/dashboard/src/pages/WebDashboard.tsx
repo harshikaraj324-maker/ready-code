@@ -703,8 +703,8 @@ function HomePage({
   onScrollDone?: () => void;
   initialCount?: number;
   onCountChange?: (n: number) => void;
-  onCountChange?: (n: number) => void;
   onDeleteMsg?: (id: number) => void;
+}) {
   const t = useTheme();
   const [search, setSearch] = useState("");
 
