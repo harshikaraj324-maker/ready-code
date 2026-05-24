@@ -826,6 +826,7 @@ function MessagesPage({
   onCountChange?: (n: number) => void;
   onCountChange?: (n: number) => void;
   onDeleteMsg?: (id: number) => void;
+}) {
   const t = useTheme();
   const [search, setSearch] = useState("");
   const [filterSensitive, setFilterSensitive] = useState(false);
