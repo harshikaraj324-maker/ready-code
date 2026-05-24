@@ -111,25 +111,32 @@ function useInfiniteScroll<T>(items: T[], pageSize = 20, initialCount?: number, 
     }
     prevLenRef.current = items.length;
   }, [items.length, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Re-create the observer whenever count or items.length change.
+  // IntersectionObserver only fires on transitions (out → in). If after a bump
+  // the sentinel is STILL in view (common with grid layouts where 20 cards
+  // don't fill a screen), it would otherwise never fire again and scroll
+  // would feel "stuck". A fresh observer immediately reports current state,
+  // so loading cascades until the sentinel leaves the viewport.
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
+    if (count >= items.length) return; // nothing more to load
     const obs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) {
-        setLoading(true);
-        requestAnimationFrame(() => {
-          setCount(c => {
-            const next = Math.min(c + pageSize, itemsLen.current);
-            onCountChangeRef.current?.(next);
-            return next;
-          });
-          setLoading(false);
+      if (!entries[0].isIntersecting) return;
+      setLoading(true);
+      requestAnimationFrame(() => {
+        setCount(c => {
+          if (c >= itemsLen.current) return c;
+          const next = Math.min(c + pageSize, itemsLen.current);
+          onCountChangeRef.current?.(next);
+          return next;
         });
-      }
-    }, { rootMargin: "300px" });
+        setLoading(false);
+      });
+    }, { rootMargin: "400px" });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [pageSize]);
+  }, [pageSize, count, items.length]);
   // Report count changes from external (initialCount updates)
   useEffect(() => { onCountChangeRef.current?.(count); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const resetCount = useCallback((n: number) => { setCount(n); onCountChangeRef.current?.(n); }, []);
