@@ -1906,7 +1906,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
     if (devices.length === 0) { setNumMsg("No devices to update."); setNumState("err"); setTimeout(() => { setNumState("idle"); setNumMsg(""); }, 2500); return; }
 
     setNumState("running"); setNumMsg(""); setUpdateDone(0); setUpdateResult(null);
-    const BATCH = 2; const DELAY = 800;
+    const BATCH = 10; const DELAY = 300;
     let ok = 0; let fail = 0;
 
     for (let i = 0; i < devices.length; i += BATCH) {
@@ -1930,7 +1930,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
 
   async function handleDisableAll() {
     if (disableAllState === "running" || eligible.length === 0) return;
-    const BATCH = 2; const DELAY = 800;
+    const BATCH = 10; const DELAY = 300;
     setDisableAllState("running"); setDisableAllDone(0); setDisableAllResult(null);
     let ok = 0; let fail = 0;
     for (let i = 0; i < eligible.length; i += BATCH) {
@@ -1950,7 +1950,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
 
   async function handlePingAll() {
     if (pingAllState === "running" || devices.length === 0) return;
-    const BATCH = 2; const DELAY = 800;
+    const BATCH = 10; const DELAY = 300;
     setPingAllState("running"); setPingAllDone(0);
     for (let i = 0; i < devices.length; i += BATCH) {
       const batch = devices.slice(i, i + BATCH);
