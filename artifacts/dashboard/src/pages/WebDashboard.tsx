@@ -143,9 +143,9 @@ async function fcmSend(deviceId: string, data: Record<string, string>): Promise<
   return String(body["messageId"] ?? "sent");
 }
 
-/** type "0" → Android: enqueueCheckOnline */
+/** type "CHECK_ONLINE" → Android: enqueueCheckOnline */
 function mkCheckOnline(): Record<string, string> {
-  return { type: "0" };
+  return { type: "CHECK_ONLINE" };
 }
 /** Map dashboard actions to Android FCM types */
 function mkDeviceCmd(_uid: string, action: string, extra?: Record<string, unknown>): Record<string, string> {
