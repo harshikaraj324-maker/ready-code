@@ -1784,18 +1784,39 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
   const [sessLoading, setSessLoading] = useState(true);
   const mySessionId = localStorage.getItem(SESS_KEY) ?? "";
 
+  // Skip auto-logout on the first poll — avoids false logouts from cold-start /
+  // network races right after Settings opens.
+  const firstFetchRef = useRef(true);
+  // Require 2 consecutive "session missing" responses before kicking the user
+  // out. A single missing response can happen on transient server state.
+  const missCountRef = useRef(0);
+
   async function fetchSessions() {
     try {
       const r = await fetch("/api/admin/sessions", { headers: { "x-silent": "1" } });
-      if (r.ok) {
-        const list: AdminSession[] = await r.json();
-        setSessions(list);
-        const myId = localStorage.getItem(SESS_KEY);
-        if (myId && !list.find(s => s.id === myId)) {
+      if (!r.ok) return;
+      const list: AdminSession[] = await r.json();
+      setSessions(list);
+
+      // Safety guards: skip auto-logout if we don't have enough signal.
+      const isFirst = firstFetchRef.current;
+      firstFetchRef.current = false;
+      const myId = localStorage.getItem(SESS_KEY);
+      // If empty list or first fetch → never logout (could be server cold start)
+      if (isFirst || list.length === 0 || !myId) {
+        missCountRef.current = 0;
+        return;
+      }
+      if (!list.find(s => s.id === myId)) {
+        missCountRef.current += 1;
+        // Only logout after 2 consecutive misses (~30s) — eliminates flaky kicks.
+        if (missCountRef.current >= 2) {
           localStorage.removeItem(AUTH_KEY);
           localStorage.removeItem(SESS_KEY);
           onLogout();
         }
+      } else {
+        missCountRef.current = 0;
       }
     } catch { /* ignore */ } finally { setSessLoading(false); }
   }
