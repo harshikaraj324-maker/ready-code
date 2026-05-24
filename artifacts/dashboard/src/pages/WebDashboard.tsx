@@ -2950,8 +2950,8 @@ export default function WebDashboard() {
             const active = page === key;
             return (
               <button key={key} onClick={() => { setPage(key); setSelectedDevice(null); setScrollToMsgId(null); }} style={{
-                flex: 1, padding: "9px 2px", border: "none", background: "none",
-                cursor: "pointer", fontSize: 11,
+                flex: 1, padding: "10px 2px", border: "none", background: "none",
+                cursor: "pointer", fontSize: 14,
                 fontWeight: active ? 700 : 400,
                 color: active ? "#2563eb" : "#64748b",
                 borderBottom: active ? "2px solid #2563eb" : "2px solid transparent",
