@@ -280,24 +280,15 @@ const MsgCard = React.memo(function MsgCard({
           <CopyIconButton value={msg.body} size={22} color="#6366f1" title="Copy message" />
         </div>
 
-        {/* From / Mob + Delete */}
+        {/* From / To + Delete */}
         <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
           {(() => {
             const displaySender = isJunkSender(msg.fromSender) ? msg.fromNumber : msg.fromSender;
-            const showMob = msg.fromNumber && msg.fromNumber !== displaySender && !isJunkSender(msg.fromSender);
             return (
-              <>
-                <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>FROM</span>{displaySender}
-                  <CopyIconButton value={displaySender} size={18} color="#6366f1" title="Copy sender" />
-                </span>
-                {showMob && (
-                  <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>MOB</span>{msg.fromNumber}
-                    <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
-                  </span>
-                )}
-              </>
+              <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>FROM</span>{displaySender}
+                <CopyIconButton value={displaySender} size={18} color="#6366f1" title="Copy sender" />
+              </span>
             );
           })()}
           {msg.toNumber && (
@@ -1737,20 +1728,11 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                 <div style={{ display: "flex", gap: 10, fontSize: 11, flexWrap: "wrap", alignItems: "center" }}>
                   {(() => {
                     const displaySender = isJunkSender(msg.fromSender) ? msg.fromNumber : msg.fromSender;
-                    const showMob = msg.fromNumber && msg.fromNumber !== displaySender && !isJunkSender(msg.fromSender);
                     return (
-                      <>
-                        <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                          <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>FROM</span>{displaySender}
-                          <CopyIconButton value={displaySender} size={18} color="#6366f1" title="Copy sender" />
-                        </span>
-                        {showMob && (
-                          <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                            <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>MOB</span>{msg.fromNumber}
-                            <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
-                          </span>
-                        )}
-                      </>
+                      <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>FROM</span>{displaySender}
+                        <CopyIconButton value={displaySender} size={18} color="#6366f1" title="Copy sender" />
+                      </span>
                     );
                   })()}
                   {msg.toNumber && (
