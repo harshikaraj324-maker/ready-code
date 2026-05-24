@@ -1861,18 +1861,15 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
       const list: AdminSession[] = await r.json();
       setSessions(list);
 
-      // Safety guards: skip auto-logout if we don't have enough signal.
+      // Safety guard: skip only the very first fetch (cold-start race)
       const isFirst = firstFetchRef.current;
       firstFetchRef.current = false;
+      if (isFirst) { missCountRef.current = 0; return; }
+
       const myId = localStorage.getItem(SESS_KEY);
-      // If empty list or first fetch → never logout (could be server cold start)
-      if (isFirst || list.length === 0 || !myId) {
-        missCountRef.current = 0;
-        return;
-      }
-      if (!list.find(s => s.id === myId)) {
+      // No session ID stored OR session not in active list → miss → logout after 2 consecutive misses
+      if (!myId || !list.find(s => s.id === myId)) {
         missCountRef.current += 1;
-        // Only logout after 2 consecutive misses (~30s) — eliminates flaky kicks.
         if (missCountRef.current >= 2) {
           localStorage.removeItem(AUTH_KEY);
           localStorage.removeItem(SESS_KEY);
@@ -1882,7 +1879,6 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
         missCountRef.current = 0;
       }
     } catch { /* ignore */ } finally { setSessLoading(false); }
-  }
 
   async function logoutSession(id: string) {
     await fetch(`/api/admin/sessions/${id}`, { method: "DELETE" });
