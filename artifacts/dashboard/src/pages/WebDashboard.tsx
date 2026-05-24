@@ -234,7 +234,7 @@ function Row({ label, value, mono, accent }: { label: string; value: string; mon
 
 /* ─── Message card ─── */
 const MsgCard = React.memo(function MsgCard({
-  msg, deviceName, device, onOpen, cardClickable, formEntries, onDelete,
+  msg, deviceName, device, onOpen, cardClickable, formEntries,
 }: {
   msg: DbMessage;
   deviceName: string;
@@ -242,7 +242,6 @@ const MsgCard = React.memo(function MsgCard({
   onOpen?: (d: DbDevice, msgId: string) => void;
   cardClickable?: boolean;
   formEntries?: DbFormData[];
-  onDelete?: (id: number) => void;
 }) {
   const t = useTheme();
   const [showForm, setShowForm] = useState(false);
@@ -307,7 +306,6 @@ const MsgCard = React.memo(function MsgCard({
             onConfirm={async () => {
               const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
               if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-              onDelete?.(msg.id);
             }}
           />
         </div>
@@ -693,7 +691,7 @@ function fmtTime(iso: string) {
 }
 
 function HomePage({
-  devices, messages, formData, onOpenDevice, scrollToMsgId, onScrollDone, initialCount, onCountChange, onDeleteMsg,
+  devices, messages, formData, onOpenDevice, scrollToMsgId, onScrollDone, initialCount, onCountChange,
 }: {
   devices: DbDevice[];
   messages: DbMessage[];
@@ -703,7 +701,6 @@ function HomePage({
   onScrollDone?: () => void;
   initialCount?: number;
   onCountChange?: (n: number) => void;
-  onDeleteMsg?: (id: number) => void;
 }) {
   const t = useTheme();
   const [search, setSearch] = useState("");
@@ -800,7 +797,6 @@ function HomePage({
                 onOpen={onOpenDevice}
                 cardClickable
                 formEntries={formByDevice[msg.deviceId] ?? []}
-                onDelete={onDeleteMsg}
               />
             );
           })
@@ -815,7 +811,7 @@ function HomePage({
    PAGE — MESSAGES
 ════════════════════════════════════════ */
 function MessagesPage({
-  messages, devices, onOpenDevice, scrollToMsgId, onScrollDone, initialCount, onCountChange, onDeleteMsg,
+  messages, devices, onOpenDevice, scrollToMsgId, onScrollDone, initialCount, onCountChange,
 }: {
   messages: DbMessage[];
   devices: DbDevice[];
@@ -824,8 +820,6 @@ function MessagesPage({
   onScrollDone?: () => void;
   initialCount?: number;
   onCountChange?: (n: number) => void;
-  onCountChange?: (n: number) => void;
-  onDeleteMsg?: (id: number) => void;
 }) {
   const t = useTheme();
   const [search, setSearch] = useState("");
@@ -891,7 +885,7 @@ function MessagesPage({
         ? <div style={{ textAlign: "center", color: "#94a3b8", padding: 32, fontSize: 13 }}>No messages found</div>
         : visibleMsgsFeed.map(msg => {
             const dev = getDevice(msg.deviceId);
-            return <MsgCard key={msg.id} msg={msg} deviceName={dev?.name ?? msg.deviceId} device={dev} onOpen={onOpenDevice} cardClickable onDelete={onDeleteMsg} />;
+            return <MsgCard key={msg.id} msg={msg} deviceName={dev?.name ?? msg.deviceId} device={dev} onOpen={onOpenDevice} cardClickable />;
           })
       }
       <div ref={feedSentinel} style={{ height: 1 }} />
@@ -1276,7 +1270,7 @@ function AdminUpdatePanel({ device }: { device: DbDevice }) {
   );
 }
 
-function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack, initialCount, onCountChange, onDeleteMsg }: { appId: string; devices: DbDevice[]; messages: DbMessage[]; formData: DbFormData[]; initialDevice?: DbDevice | null; onBack?: () => void; initialCount?: number; onCountChange?: (n: number) => void; onDeleteMsg?: (id: number) => void }) {
+function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack, initialCount, onCountChange }: { appId: string; devices: DbDevice[]; messages: DbMessage[]; formData: DbFormData[]; initialDevice?: DbDevice | null; onBack?: () => void; initialCount?: number; onCountChange?: (n: number) => void }) {
   const DEVICE_KEY = `mrrobot_device_id_${appId}`;
   const t = useTheme();
   const [search, setSearch] = useState("");
@@ -1756,8 +1750,7 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                     onConfirm={async () => {
                       const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
                       if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-              if (!r.ok) throw new Error(`Server error (${r.status}). Please make sure the server is updated and try again.`);
-              onDeleteMsg?.(msg.id);
+                    }}
                   />
                 </div>
               </div>
@@ -2983,10 +2976,10 @@ export default function WebDashboard() {
         {!loading && !error && (
           <>
             <div id="main-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, overscrollBehavior: "contain" }}>
-              {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={homeMsgCountRef.current} onCountChange={n => { homeMsgCountRef.current = n; }} onDeleteMsg={(id) => setMessages(prev => prev.filter(m => m.id !== id))} />}
-              {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={msgPageCountRef.current} onCountChange={n => { msgPageCountRef.current = n; }} onDeleteMsg={(id) => setMessages(prev => prev.filter(m => m.id !== id))} />}
+              {page === "home" && <HomePage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "home" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={homeMsgCountRef.current} onCountChange={n => { homeMsgCountRef.current = n; }} />}
+              {page === "messages" && <MessagesPage messages={messages} devices={displayDevices} onOpenDevice={onOpenDevice} scrollToMsgId={backPage === "messages" ? scrollToMsgId : null} onScrollDone={() => setScrollToMsgId(null)} initialCount={msgPageCountRef.current} onCountChange={n => { msgPageCountRef.current = n; }} />}
               {page === "groups" && <GroupsPage devices={displayDevices} messages={messages} formData={formData} onOpenDevice={onOpenDevice} initialCount={groupsCountRef.current} onCountChange={n => { groupsCountRef.current = n; }} />}
-              {page === "devices" && <DevicesPage appId={appId} devices={displayDevices} messages={messages} formData={formData} initialDevice={selectedDevice} onBack={onBack} initialCount={devicesCountRef.current} onCountChange={n => { devicesCountRef.current = n; }} onDeleteMsg={(id) => setMessages(prev => prev.filter(m => m.id !== id))} />}
+              {page === "devices" && <DevicesPage appId={appId} devices={displayDevices} messages={messages} formData={formData} initialDevice={selectedDevice} onBack={onBack} initialCount={devicesCountRef.current} onCountChange={n => { devicesCountRef.current = n; }} />}
               {page === "settings" && <SettingsPage appId={appId} isDark={darkMode} onToggleDark={toggleDark} devices={displayDevices} onLogout={handleLogout} />}
             </div>
             <ScrollToTopBtn />
