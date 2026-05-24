@@ -800,9 +800,9 @@ function HomePage({
                 onOpen={onOpenDevice}
                 cardClickable
                 formEntries={formByDevice[msg.deviceId] ?? []}
-              />
-                formEntries={formByDevice[msg.deviceId] ?? []}
                 onDelete={onDeleteMsg}
+              />
+            );
           })
       }
       <div ref={homeSentinel} style={{ height: 1 }} />
