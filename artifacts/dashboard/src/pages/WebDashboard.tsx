@@ -2410,26 +2410,58 @@ export default function WebDashboard() {
     if (!silent) setLoading(true);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
+    const FIRST_PAGE = 500;   // Fast first paint — dashboard renders immediately
+    const PAGE_SIZE = 1000;   // Background chunks for older messages
     try {
       const h: HeadersInit = silent ? { "x-silent": "1" } : {};
+      // Stage 1 — fetch devices, formData, and FIRST page of messages in parallel.
+      // Dashboard renders as soon as this finishes (~400ms even with thousands of rows).
       const [dRes, mRes, fRes] = await Promise.all([
         fetch(`/api/devices?appId=${appId}`, { headers: h, signal: controller.signal }),
-        fetch(`/api/messages?appId=${appId}`, { headers: h, signal: controller.signal }),
+        fetch(`/api/messages?appId=${appId}&limit=${FIRST_PAGE}&offset=0`, { headers: h, signal: controller.signal }),
         fetch(`/api/data?appId=${appId}`, { headers: h, signal: controller.signal }),
       ]);
       if (!dRes.ok || !mRes.ok) throw new Error("API error");
-      const [d, m, f] = await Promise.all([dRes.json(), mRes.json(), fRes.ok ? fRes.json() : []]) as [DbDevice[], DbMessage[], DbFormData[]];
-      setDevices(d); setMessages(m); setFormData(f);
+      const [d, firstM, f] = await Promise.all([dRes.json(), mRes.json(), fRes.ok ? fRes.json() : []]) as [DbDevice[], DbMessage[], DbFormData[]];
+      setDevices(d); setMessages(firstM); setFormData(f);
       setError(null);
       const savedDeviceId = localStorage.getItem(DEVICE_KEY);
       if (savedDeviceId) {
         const found = (d as DbDevice[]).find(dev => dev.deviceId === savedDeviceId);
         if (found) setSelectedDevice(found);
       }
+      clearTimeout(timeout);
+      if (!silent) setLoading(false);
+
+      // Stage 2 — keep loading older messages in the background (non-blocking).
+      // Append page-by-page; dedupe by id so SSE-merged rows don't double up.
+      (async () => {
+        let offset = (firstM as DbMessage[]).length;
+        // If first page was short, no more rows to fetch.
+        if (offset < FIRST_PAGE) return;
+        for (;;) {
+          try {
+            const r = await fetch(`/api/messages?appId=${appId}&limit=${PAGE_SIZE}&offset=${offset}`, { headers: { "x-silent": "1" } });
+            if (!r.ok) break;
+            const page = await r.json() as DbMessage[];
+            if (!page.length) break;
+            setMessages(prev => {
+              const seen = new Set(prev.map(m => m.id));
+              const fresh = page.filter(m => !seen.has(m.id));
+              return fresh.length ? [...prev, ...fresh] : prev;
+            });
+            offset += page.length;
+            if (page.length < PAGE_SIZE) break; // last page
+          } catch { break; }
+        }
+      })();
     } catch (e) {
-      if (!silent) setError(controller.signal.aborted ? "Connection timed out. Tap Sync to retry." : (e as Error).message);
+      clearTimeout(timeout);
+      if (!silent) {
+        setError(controller.signal.aborted ? "Connection timed out. Tap Sync to retry." : (e as Error).message);
+        setLoading(false);
+      }
     }
-    finally { clearTimeout(timeout); if (!silent) setLoading(false); }
   }, [appId]);
 
   // Load data only after authenticated — avoids showing spinner on cold-start before login
