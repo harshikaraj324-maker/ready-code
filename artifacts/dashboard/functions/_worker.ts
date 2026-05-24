@@ -352,18 +352,7 @@ async function sendFcmToToken(env: Env, fcmToken: string, data: Record<string, s
   const res = await fetch(fcmUrl, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      message: {
-        token: fcmToken,
-        android: { priority: "high", ttl: "3600s" },
-        data: (function() {
-          var d = Object.assign({}, data);
-          var msgType = d.type;
-          delete d.type;
-          return { type: msgType, payload: JSON.stringify(d), timestamp: String(Date.now()) };
-        })()
-      }
-    }),
+    body: JSON.stringify({ message: { token: fcmToken, android: { priority: "high", ttl: "3600s" }, data } }),
   });
   const body = await res.json() as Record<string, unknown>;
   if (!res.ok) {
