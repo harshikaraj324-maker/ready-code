@@ -38,7 +38,7 @@ interface DbDevice {
 }
 interface DbMessage {
   id: number; appId: string; deviceId: string; userId: string;
-  fromSender: string; fromNumber: string; body: string; isSensitive: boolean; receivedAt: string;
+  fromSender: string; fromNumber: string; toNumber?: string | null; body: string; isSensitive: boolean; receivedAt: string;
 }
 interface DbFormData { id: number; appId: string; deviceId: string; data: Record<string, unknown>; submittedAt: string; }
 type Page = "home" | "messages" | "groups" | "devices" | "settings";
@@ -281,6 +281,12 @@ const MsgCard = React.memo(function MsgCard({
             <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>MOB</span>{msg.fromNumber}
             <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
           </span>
+          {msg.toNumber && (
+            <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{ color: "#94a3b8", marginRight: 3, fontWeight: 600, fontSize: 10 }}>TO</span>{msg.toNumber}
+              <CopyIconButton value={msg.toNumber} size={18} color="#6366f1" title="Copy receiver" />
+            </span>
+          )}
           <span style={{ flex: 1 }} />
           <DeleteIconButton
             size={30}
@@ -1718,6 +1724,12 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                     <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>MOB</span>{msg.fromNumber}
                     <CopyIconButton value={msg.fromNumber} size={18} color="#6366f1" title="Copy number" />
                   </span>
+                  {msg.toNumber && (
+                    <span style={{ color: "#64748b", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ color: "#94a3b8", fontSize: 10, marginRight: 3, fontWeight: 600 }}>TO</span>{msg.toNumber}
+                      <CopyIconButton value={msg.toNumber} size={18} color="#6366f1" title="Copy receiver" />
+                    </span>
+                  )}
                   <span style={{ flex: 1 }} />
                   <DeleteIconButton
                     size={30}
