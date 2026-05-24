@@ -864,7 +864,11 @@ app.post("/api/admin/sessions", async (c) => {
 });
 app.patch("/api/admin/sessions/:id/ping", async (c) => {
   const sqlClient = neon(c.env.NEON_DATABASE_URL);
-  await sqlClient(`UPDATE admin_sessions SET last_active = NOW() WHERE id = $1`, [c.req.param("id")]);
+  const rows = await sqlClient(
+    `UPDATE admin_sessions SET last_active = NOW() WHERE id = $1 RETURNING id`,
+    [c.req.param("id")],
+  ) as Array<{ id: string }>;
+  if (rows.length === 0) return c.json({ error: "session not found" }, 404);
   return c.json({ ok: true });
 });
 app.delete("/api/admin/sessions/:id", async (c) => {
