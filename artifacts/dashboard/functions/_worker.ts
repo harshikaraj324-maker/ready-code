@@ -512,13 +512,21 @@ app.get("/api/messages", async (c) => {
   const appId = c.req.query("appId");
   const userId = c.req.query("userId");
   const deviceId = c.req.query("deviceId");
+  // Default cap: 500 most recent messages — keeps initial dashboard load fast.
+  // Client can pass ?limit=N&offset=M for pagination, or ?limit=0 for all rows.
+  const limitParam = c.req.query("limit");
+  const offsetParam = c.req.query("offset");
+  const rawLimit = limitParam == null ? 500 : Math.max(0, Math.min(5000, parseInt(limitParam, 10) || 0));
+  const offset = Math.max(0, parseInt(offsetParam ?? "0", 10) || 0);
   const where = appId ? eq(messages.appId, appId)
     : userId ? eq(messages.userId, userId)
     : deviceId ? eq(messages.deviceId, deviceId)
     : undefined;
-  const rows = where
-    ? await db.select().from(messages).where(where).orderBy(desc(messages.receivedAt))
-    : await db.select().from(messages).orderBy(desc(messages.receivedAt));
+  let q = where
+    ? db.select().from(messages).where(where).orderBy(desc(messages.receivedAt))
+    : db.select().from(messages).orderBy(desc(messages.receivedAt));
+  if (rawLimit > 0) q = q.limit(rawLimit).offset(offset) as typeof q;
+  const rows = await q;
   return c.json(rows.map(mapMessage));
 });
 
