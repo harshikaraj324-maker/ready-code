@@ -27,6 +27,7 @@ const apps = pgTable("apps", {
   name: text("name").notNull(),
   pin: text("pin").notNull().default("1234"),
   status: text("status").notNull().default("active"),
+  loginLimit: integer("login_limit").notNull().default(5),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ appIdUq: uniqueIndex("apps_app_id_uq").on(t.appId) }));
 
@@ -174,6 +175,8 @@ async function ensureSchema(env: Env): Promise<void> {
       sqlClient(`CREATE INDEX IF NOT EXISTS admin_sessions_login_idx ON admin_sessions(login_time DESC)`),
       sqlClient(`ALTER TABLE admin_sessions ADD COLUMN IF NOT EXISTS app_id TEXT NOT NULL DEFAULT ''`),
       sqlClient(`CREATE INDEX IF NOT EXISTS admin_sessions_app_idx ON admin_sessions(app_id)`),
+      // Migration: add login_limit column if not exists
+      sqlClient(`ALTER TABLE apps ADD COLUMN IF NOT EXISTS login_limit INTEGER NOT NULL DEFAULT 5`),
     ]);
     // ensure default app + master PIN setting
     await Promise.all([
@@ -200,7 +203,7 @@ function isoReq(d: Date | string): string {
   return typeof d === "string" ? d : d.toISOString();
 }
 function mapApp(r: typeof apps.$inferSelect) {
-  return { id: r.id, appId: r.appId, name: r.name, status: r.status, createdAt: isoReq(r.createdAt) };
+  return { id: r.id, appId: r.appId, name: r.name, status: r.status, loginLimit: r.loginLimit ?? 5, createdAt: isoReq(r.createdAt) };
 }
 function mapDevice(r: typeof devices.$inferSelect) {
   return {
@@ -471,6 +474,7 @@ app.delete("/api/apps/:appId", async (c) => {
 
 app.post("/api/apps/:appId/verify-pin", async (c) => {
   const db = getDb(c.env);
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
   const body = await c.req.json() as { pin?: string };
   if (!body.pin) return c.json({ error: "PIN required" }, 400);
   const appId = c.req.param("appId");
@@ -482,6 +486,16 @@ app.post("/api/apps/:appId/verify-pin", async (c) => {
   }
   if (row.status !== "active") return c.json({ error: "App is disabled" }, 403);
   if (row.pin !== body.pin) return c.json({ error: "Wrong PIN" }, 401);
+  // Check concurrent login limit — count active sessions (pinged in last 30 min)
+  const limit = row.loginLimit ?? 5;
+  const activeRows = await sqlClient(
+    `SELECT COUNT(*) as cnt FROM admin_sessions WHERE app_id = $1 AND last_active > NOW() - INTERVAL '30 minutes'`,
+    [appId],
+  ) as Array<{ cnt: string }>;
+  const activeCnt = Number(activeRows[0]?.cnt ?? 0);
+  if (activeCnt >= limit) {
+    return c.json({ error: `Login limit reached. Maximum ${limit} concurrent session${limit === 1 ? "" : "s"} allowed. Please wait for someone to log out.` }, 429);
+  }
   return c.json({ ok: true, appId: row.appId, name: row.name });
 });
 
@@ -849,8 +863,19 @@ app.get("/api/master/apps", async (c) => {
   const guard = await checkMasterPin(c as never);
   if (guard) return guard;
   const db = getDb(c.env);
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
   const rows = await db.select().from(apps).orderBy(asc(apps.createdAt));
-  return c.json(rows.map(r => ({ id: r.id, appId: r.appId, name: r.name, pin: r.pin, status: r.status, createdAt: isoReq(r.createdAt) })));
+  // Count active sessions per app
+  const sessionCounts = await sqlClient(
+    `SELECT app_id, COUNT(*) as cnt FROM admin_sessions WHERE last_active > NOW() - INTERVAL '30 minutes' GROUP BY app_id`,
+  ) as Array<{ app_id: string; cnt: string }>;
+  const sessionMap = Object.fromEntries(sessionCounts.map(r => [r.app_id, Number(r.cnt)]));
+  return c.json(rows.map(r => ({
+    id: r.id, appId: r.appId, name: r.name, pin: r.pin,
+    status: r.status, loginLimit: r.loginLimit ?? 5,
+    activeSessions: sessionMap[r.appId] ?? 0,
+    createdAt: isoReq(r.createdAt),
+  })));
 });
 
 // Master admin: create app — requires x-master-pin header
@@ -868,21 +893,25 @@ app.post("/api/master/apps", async (c) => {
   return c.json({ id: r.id, appId: r.appId, name: r.name, pin: r.pin, status: r.status, createdAt: isoReq(r.createdAt) }, 201);
 });
 
-// Master admin: update app (name/pin/status) — requires x-master-pin header
+// Master admin: update app (name/pin/status/loginLimit) — requires x-master-pin header
 app.patch("/api/master/apps/:appId", async (c) => {
   const guard = await checkMasterPin(c as never);
   if (guard) return guard;
   const db = getDb(c.env);
   const appId = c.req.param("appId");
-  const body = await c.req.json() as { name?: string; pin?: string; status?: string };
+  const body = await c.req.json() as { name?: string; pin?: string; status?: string; loginLimit?: number };
   const patch: Partial<typeof apps.$inferInsert> = {};
   if (body.name) patch.name = body.name;
   if (body.pin) patch.pin = body.pin;
   if (body.status) patch.status = body.status;
+  if (body.loginLimit !== undefined) {
+    const lim = Number(body.loginLimit);
+    if (lim >= 1 && lim <= 5) patch.loginLimit = lim;
+  }
   const updated = await db.update(apps).set(patch).where(eq(apps.appId, appId)).returning();
   if (updated.length === 0) return c.json({ error: "App not found" }, 404);
   const r = updated[0];
-  return c.json({ id: r.id, appId: r.appId, name: r.name, pin: r.pin, status: r.status, createdAt: isoReq(r.createdAt) });
+  return c.json({ id: r.id, appId: r.appId, name: r.name, pin: r.pin, status: r.status, loginLimit: r.loginLimit ?? 5, createdAt: isoReq(r.createdAt) });
 });
 
 // Master admin: delete app — requires x-master-pin header
