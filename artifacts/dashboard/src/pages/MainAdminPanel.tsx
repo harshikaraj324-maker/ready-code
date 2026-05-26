@@ -9,7 +9,7 @@ const T = {
 
 type App = {
   id: number; appId: string; name: string; pin: string;
-  status: string; createdAt: string;
+  status: string; loginLimit: number; activeSessions: number; createdAt: string;
 };
 
 function generateAppId() {
@@ -194,10 +194,11 @@ function ChangePinModal({ masterPin, onClose, onChanged }: { masterPin: string; 
   );
 }
 
-/* ─────────── Edit App PIN Modal ─────────── */
+/* ─────────── Edit App Modal ─────────── */
 function EditAppModal({ app, masterPin, onClose, onUpdated }: { app: App; masterPin: string; onClose: () => void; onUpdated: (a: App) => void }) {
   const [name, setName] = useState(app.name);
   const [pin, setPin] = useState(app.pin);
+  const [loginLimit, setLoginLimit] = useState(app.loginLimit ?? 5);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -210,11 +211,11 @@ function EditAppModal({ app, masterPin, onClose, onUpdated }: { app: App; master
       const r = await fetch(`/api/master/apps/${encodeURIComponent(app.appId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "x-master-pin": masterPin },
-        body: JSON.stringify({ name: name.trim(), pin }),
+        body: JSON.stringify({ name: name.trim(), pin, loginLimit }),
       });
       if (!r.ok) { const j = await r.json() as { error?: string }; setErr(j.error ?? "Failed"); return; }
       const updated = await r.json() as App;
-      onUpdated(updated);
+      onUpdated({ ...updated, activeSessions: app.activeSessions });
     } catch { setErr("Network error"); }
     finally { setLoading(false); }
   }
@@ -222,7 +223,7 @@ function EditAppModal({ app, masterPin, onClose, onUpdated }: { app: App; master
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ width: 380, background: T.card, borderRadius: 16, padding: 32, border: `1px solid ${T.border}` }}>
+      <div style={{ width: 400, background: T.card, borderRadius: 16, padding: 32, border: `1px solid ${T.border}` }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: T.text, marginBottom: 6 }}>Edit App</div>
         <div style={{ fontSize: 12, color: T.muted, marginBottom: 22, fontFamily: "monospace" }}>{app.appId}</div>
         <form onSubmit={handleSubmit}>
@@ -235,6 +236,28 @@ function EditAppModal({ app, masterPin, onClose, onUpdated }: { app: App; master
             <label style={{ fontSize: 11, color: T.muted, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Login PIN</label>
             <input type="text" value={pin} onChange={e => setPin(e.target.value)}
               style={{ width: "100%", marginTop: 5, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.border}`, background: T.inputBg, color: T.text, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "monospace" }} />
+          </div>
+          {/* Login Limit */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, color: T.muted, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Max Concurrent Logins</label>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              {[1, 2, 3, 4, 5].map(n => (
+                <button key={n} type="button" onClick={() => setLoginLimit(n)}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 8,
+                    background: loginLimit === n ? T.accent : T.border,
+                    border: loginLimit === n ? `2px solid ${T.accent}` : `2px solid transparent`,
+                    color: loginLimit === n ? "#fff" : T.muted,
+                    fontWeight: 800, fontSize: 16, cursor: "pointer",
+                    transition: "all .15s",
+                  }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 6 }}>
+              {loginLimit === 1 ? "Only 1 person can be logged in at a time" : `Max ${loginLimit} people can be logged in simultaneously`}
+            </div>
           </div>
           {err && <div style={{ color: T.red, fontSize: 13, marginBottom: 10 }}>{err}</div>}
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
@@ -376,7 +399,18 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
                     <div style={{ fontSize: 12, color: T.muted, fontFamily: "monospace", marginBottom: 3 }}>
                       PIN: <span style={{ color: T.text, letterSpacing: 2 }}>{app.pin}</span>
                     </div>
-                    <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 5, flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 12, color: T.muted }}>
+                        Max logins: <span style={{ color: T.accent, fontWeight: 700 }}>{app.loginLimit}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: T.muted }}>
+                        Active now:{" "}
+                        <span style={{ color: (app.activeSessions ?? 0) >= app.loginLimit ? T.red : T.green, fontWeight: 700 }}>
+                          {app.activeSessions ?? 0}/{app.loginLimit}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>
                       Created: {new Date(app.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                     </div>
                   </div>
