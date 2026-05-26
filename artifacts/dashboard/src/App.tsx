@@ -16,7 +16,7 @@ function NotFound() {
 function Router() {
   return (
     <Switch>
-      <Route path="/x9f3/ctrl/panel" component={WebDashboard} />
+      <Route path="/preview/dashboard/WebDashboard" component={WebDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
