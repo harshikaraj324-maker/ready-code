@@ -241,7 +241,8 @@ function MasterLogin({ onAuth }: { onAuth: () => void }) {
         sessionStorage.setItem("mrrobot_master_auth", "1");
         onAuth();
       } else {
-        setErr("Wrong Master PIN."); setPin("");
+        const j = await r.json().catch(() => ({})) as { error?: string };
+        setErr(j.error ?? "Wrong Master PIN."); setPin("");
       }
     } catch { setErr("Network error. Try again."); }
     finally { setLoading(false); }
