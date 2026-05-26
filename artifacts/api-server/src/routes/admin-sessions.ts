@@ -69,4 +69,8 @@ router.delete("/admin/sessions", (_req, res) => {
   res.json({ ok: true });
 });
 
+export function hasActiveSession(): boolean {
+  return sessions.size > 0;
+}
+
 export default router;
