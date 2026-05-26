@@ -21,6 +21,11 @@ async function setMasterPinHash(plain: string): Promise<void> {
   );
 }
 
+// Lock status — frontend polls this to force-logout any active master session
+router.get("/admin/master-lock-status", (_req, res) => {
+  res.json({ locked: true });
+});
+
 router.post("/admin/verify-master-pin", async (req, res) => {
   // MASTER ADMIN LOGIN DISABLED — account security lock
   res.status(403).json({ error: "Master admin login abhi disabled hai. Admin se contact karo." });
