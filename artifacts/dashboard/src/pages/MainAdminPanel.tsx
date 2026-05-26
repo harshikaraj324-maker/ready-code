@@ -1149,6 +1149,27 @@ export default function MainAdminPanel() {
     setAuthed(false);
   }
 
+  // Force-logout if master admin lock is active (even if already logged in)
+  useEffect(() => {
+    let cancelled = false;
+    async function checkLock() {
+      try {
+        const r = await fetch("/api/admin/master-lock-status");
+        if (cancelled) return;
+        if (r.ok) {
+          const j = await r.json() as { locked?: boolean };
+          if (j.locked) {
+            sessionStorage.removeItem("mrrobot_master_auth");
+            setAuthed(false);
+          }
+        }
+      } catch { /* network error — ignore */ }
+    }
+    void checkLock();
+    const interval = setInterval(() => { void checkLock(); }, 10_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
   if (!authed) return <MasterLogin onAuth={() => setAuthed(true)} />;
   return <AdminDashboard onLogout={handleLogout} />;
 }
