@@ -1,5 +1,4 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
-import MainAdminPanel from "@/pages/MainAdminPanel";
 import WebDashboard from "@/pages/WebDashboard";
 import { TopProgressBar } from "@/components/ui/top-progress";
 
@@ -17,9 +16,7 @@ function NotFound() {
 function Router() {
   return (
     <Switch>
-      <Route path="/preview/dashboard/MainAdminPanel" component={MainAdminPanel} />
       <Route path="/preview/dashboard/WebDashboard" component={WebDashboard} />
-      <Route path="/" component={MainAdminPanel} />
       <Route component={NotFound} />
     </Switch>
   );
