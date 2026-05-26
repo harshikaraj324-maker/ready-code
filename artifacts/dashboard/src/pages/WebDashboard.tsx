@@ -1859,7 +1859,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
       if (!myId || !list.find(s => s.id === myId)) {
         missCountRef.current += 1;
         if (missCountRef.current >= 2) {
-          localStorage.removeItem(AUTH_KEY);
+          sessionStorage.removeItem(AUTH_KEY);
           localStorage.removeItem(SESS_KEY);
           onLogout();
         }
@@ -2220,9 +2220,9 @@ function LoginPage({ onAuth, appId, appName }: { onAuth: () => void; appId: stri
       const sessR = await fetch("/api/admin/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId }) }).catch(() => null);
       if (sessR?.ok) {
         const { sessionId } = await sessR.json();
-        localStorage.setItem(`mrrobot_session_id_${appId}`, sessionId);
+        sessionStorage.setItem(`mrrobot_session_id_${appId}`, sessionId);
       }
-      localStorage.setItem(`mrrobot_auth_${appId}`, "1");
+      // do NOT save auth to localStorage — user must PIN-login on every page open
       onAuth();
     } catch { setErr("Network error. Try again."); }
     finally { setLoading(false); }
@@ -2373,8 +2373,7 @@ export default function WebDashboard() {
   const [authed, setAuthed] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("autoAuth") === "1") return true;
-    const aId = params.get("appId") || "SKY-APP-2026-X9F3";
-    return localStorage.getItem(`mrrobot_auth_${aId}`) === "1";
+    return false; // always ask PIN on every page load — no localStorage persistence
   });
   const [devices, setDevices] = useState<DbDevice[]>([]);
   const [messages, setMessages] = useState<DbMessage[]>([]);
@@ -2396,10 +2395,10 @@ export default function WebDashboard() {
         const app = await r.json() as { status: string; name?: string };
         if (app.name) setAppName(app.name);
         if (app.status !== "active") {
-          const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
+          const sid = sessionStorage.getItem(`mrrobot_session_id_${appId}`);
           if (sid) fetch(`/api/admin/sessions/${sid}`, { method: "DELETE" }).catch(() => {});
-          localStorage.removeItem(`mrrobot_auth_${appId}`);
-          localStorage.removeItem(`mrrobot_session_id_${appId}`);
+          sessionStorage.removeItem(`mrrobot_auth_${appId}`);
+          sessionStorage.removeItem(`mrrobot_session_id_${appId}`);
           setAuthed(false);
         }
       } catch { /* ignore network errors */ }
@@ -2417,12 +2416,12 @@ export default function WebDashboard() {
     if (new URLSearchParams(window.location.search).get("autoAuth") === "1") return;
     let misses = 0;
     async function pingSession() {
-      const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
+      const sid = sessionStorage.getItem(`mrrobot_session_id_${appId}`);
       if (!sid) {
           // Already logged in but no session tracked — create one (handles old-code logins)
           fetch("/api/admin/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId }) })
             .then(r => r.ok ? r.json() : null)
-            .then(data => { if (data?.sessionId) localStorage.setItem(`mrrobot_session_id_${appId}`, data.sessionId); })
+            .then(data => { if (data?.sessionId) sessionStorage.setItem(`mrrobot_session_id_${appId}`, data.sessionId); })
             .catch(() => {});
           return;
         }
@@ -2434,8 +2433,8 @@ export default function WebDashboard() {
         if (r.status === 404) {
           misses += 1;
           if (misses >= 2) {
-            localStorage.removeItem(`mrrobot_auth_${appId}`);
-            localStorage.removeItem(`mrrobot_session_id_${appId}`);
+            sessionStorage.removeItem(`mrrobot_auth_${appId}`);
+            sessionStorage.removeItem(`mrrobot_session_id_${appId}`);
             setAuthed(false);
           }
         } else if (r.ok) {
@@ -2768,10 +2767,10 @@ export default function WebDashboard() {
   ];
 
   function handleLogout() {
-    const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
+    const sid = sessionStorage.getItem(`mrrobot_session_id_${appId}`);
     if (sid) fetch(`/api/admin/sessions/${sid}`, { method: "DELETE" }).catch(() => {});
-    localStorage.removeItem(`mrrobot_auth_${appId}`);
-    localStorage.removeItem(`mrrobot_session_id_${appId}`);
+    sessionStorage.removeItem(`mrrobot_auth_${appId}`);
+    sessionStorage.removeItem(`mrrobot_session_id_${appId}`);
     setAuthed(false);
   }
 
