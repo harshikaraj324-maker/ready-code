@@ -4,6 +4,11 @@ import { DEFAULT_APP_ID, localDb } from "../lib/local-db";
 const router: IRouter = Router();
 const VALIDITY_DAYS = 30;
 
+function stripPin<T extends { pin?: unknown }>(obj: T): Omit<T, "pin"> {
+  const { pin: _pin, ...rest } = obj;
+  return rest as Omit<T, "pin">;
+}
+
 function isExpired(createdAt: string | Date): boolean {
   const created = new Date(createdAt).getTime();
   const expiry = created + VALIDITY_DAYS * 24 * 60 * 60 * 1000;
@@ -30,14 +35,14 @@ router.get("/apps", async (_req, res) => {
       await localDb.updateApp(app.appId, { status: "disabled" });
     }
   }
-  res.json(await localDb.listApps());
+  res.json((await localDb.listApps()).map(stripPin));
 });
 
 router.get("/apps/:appId", async (req, res) => {
   await autoDisableIfExpired(req.params.appId);
   const app = await localDb.getApp(req.params.appId);
   if (!app) { res.status(404).json({ error: "App not found" }); return; }
-  res.json(app);
+  res.json(stripPin(app));
 });
 
 router.post("/apps", async (req, res) => {
@@ -46,7 +51,7 @@ router.post("/apps", async (req, res) => {
   if (name.trim() !== "MR ROBOT") { res.status(400).json({ error: "App name must be 'MR ROBOT'" }); return; }
   try {
     const row = await localDb.createApp({ appId, name: "MR ROBOT", pin, status });
-    res.status(201).json(row);
+    res.status(201).json(stripPin(row));
   } catch (err) {
     if ((err as Error).message === "APP_EXISTS") { res.status(409).json({ error: "App ID already exists" }); return; }
     throw err;
@@ -62,7 +67,7 @@ router.patch("/apps/:appId", async (req, res) => {
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
   const row = await localDb.updateApp(req.params.appId, updates);
   if (!row) { res.status(404).json({ error: "App not found" }); return; }
-  res.json(row);
+  res.json(stripPin(row));
 });
 
 router.delete("/apps/:appId", async (req, res) => {
