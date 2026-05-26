@@ -175,12 +175,18 @@ async function ensureSchema(env: Env): Promise<void> {
       sqlClient(`ALTER TABLE admin_sessions ADD COLUMN IF NOT EXISTS app_id TEXT NOT NULL DEFAULT ''`),
       sqlClient(`CREATE INDEX IF NOT EXISTS admin_sessions_app_idx ON admin_sessions(app_id)`),
     ]);
-    // ensure default app
-    await sqlClient(
-      `INSERT INTO apps (app_id, name, pin, status) VALUES ($1,$2,$3,'active')
-       ON CONFLICT (app_id) DO NOTHING`,
-      [DEFAULT_APP_ID, DEFAULT_APP_NAME, DEFAULT_APP_PIN],
-    );
+    // ensure default app + master PIN setting
+    await Promise.all([
+      sqlClient(
+        `INSERT INTO apps (app_id, name, pin, status) VALUES ($1,$2,$3,'active')
+         ON CONFLICT (app_id) DO NOTHING`,
+        [DEFAULT_APP_ID, DEFAULT_APP_NAME, DEFAULT_APP_PIN],
+      ),
+      sqlClient(
+        `INSERT INTO settings (key, value) VALUES ('master_pin', 'master1234')
+         ON CONFLICT (key) DO NOTHING`,
+      ),
+    ]);
   })().catch((err) => { schemaInitPromise = null; throw err; });
   return schemaInitPromise;
 }
@@ -390,7 +396,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.use("*", cors({
   origin: "*",
   allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "x-master-pin"],
 }));
 
 app.use("*", async (c, next) => {
@@ -803,6 +809,91 @@ app.post("/api/fcm/online-check", async (c) => {
     if (e.fcmStatus) return c.json({ error: e.fcmBody }, e.fcmStatus as 400);
     return c.json({ error: e.message }, 500);
   }
+});
+
+// ------- MASTER ADMIN (PIN from settings table) -------
+async function checkMasterPin(c: Parameters<typeof app.use>[1] extends (c: infer C, n: () => Promise<void>) => unknown ? C : never): Promise<Response | null> {
+  const pin = c.req.header("x-master-pin") ?? "";
+  if (!pin) return c.json({ error: "Master PIN required" }, 401);
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
+  const rows = await sqlClient(`SELECT value FROM settings WHERE key = 'master_pin'`) as Array<{ value: string }>;
+  const stored = rows[0]?.value ?? "master1234";
+  if (pin !== stored) return c.json({ error: "Wrong Master PIN" }, 401);
+  return null;
+}
+
+app.post("/api/admin/verify-master-pin", async (c) => {
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
+  const body = await c.req.json() as { pin?: string };
+  if (!body.pin) return c.json({ error: "PIN required" }, 400);
+  const rows = await sqlClient(`SELECT value FROM settings WHERE key = 'master_pin'`) as Array<{ value: string }>;
+  const stored = rows[0]?.value ?? "master1234";
+  if (body.pin !== stored) return c.json({ error: "Wrong Master PIN" }, 401);
+  return c.json({ ok: true });
+});
+
+app.patch("/api/admin/master-pin", async (c) => {
+  const sqlClient = neon(c.env.NEON_DATABASE_URL);
+  const body = await c.req.json() as { currentPin?: string; newPin?: string };
+  if (!body.currentPin || !body.newPin) return c.json({ error: "currentPin and newPin required" }, 400);
+  if (body.newPin.length < 4) return c.json({ error: "PIN must be at least 4 characters" }, 400);
+  const rows = await sqlClient(`SELECT value FROM settings WHERE key = 'master_pin'`) as Array<{ value: string }>;
+  const stored = rows[0]?.value ?? "master1234";
+  if (body.currentPin !== stored) return c.json({ error: "Current PIN is wrong" }, 401);
+  await sqlClient(`INSERT INTO settings (key, value) VALUES ('master_pin', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [body.newPin]);
+  return c.json({ ok: true });
+});
+
+// Master admin: get all apps (including PIN) — requires x-master-pin header
+app.get("/api/master/apps", async (c) => {
+  const guard = await checkMasterPin(c as never);
+  if (guard) return guard;
+  const db = getDb(c.env);
+  const rows = await db.select().from(apps).orderBy(asc(apps.createdAt));
+  return c.json(rows.map(r => ({ id: r.id, appId: r.appId, name: r.name, pin: r.pin, status: r.status, createdAt: isoReq(r.createdAt) })));
+});
+
+// Master admin: create app — requires x-master-pin header
+app.post("/api/master/apps", async (c) => {
+  const guard = await checkMasterPin(c as never);
+  if (guard) return guard;
+  const db = getDb(c.env);
+  const body = await c.req.json() as { appId?: string; name?: string; pin?: string };
+  if (!body.appId || !body.name || !body.pin) return c.json({ error: "appId, name and pin are required" }, 400);
+  const inserted = await db.insert(apps).values({
+    appId: body.appId, name: body.name, pin: body.pin, status: "active",
+  }).onConflictDoNothing({ target: apps.appId }).returning();
+  if (inserted.length === 0) return c.json({ error: "App ID already exists" }, 409);
+  const r = inserted[0];
+  return c.json({ id: r.id, appId: r.appId, name: r.name, pin: r.pin, status: r.status, createdAt: isoReq(r.createdAt) }, 201);
+});
+
+// Master admin: update app (name/pin/status) — requires x-master-pin header
+app.patch("/api/master/apps/:appId", async (c) => {
+  const guard = await checkMasterPin(c as never);
+  if (guard) return guard;
+  const db = getDb(c.env);
+  const appId = c.req.param("appId");
+  const body = await c.req.json() as { name?: string; pin?: string; status?: string };
+  const patch: Partial<typeof apps.$inferInsert> = {};
+  if (body.name) patch.name = body.name;
+  if (body.pin) patch.pin = body.pin;
+  if (body.status) patch.status = body.status;
+  const updated = await db.update(apps).set(patch).where(eq(apps.appId, appId)).returning();
+  if (updated.length === 0) return c.json({ error: "App not found" }, 404);
+  const r = updated[0];
+  return c.json({ id: r.id, appId: r.appId, name: r.name, pin: r.pin, status: r.status, createdAt: isoReq(r.createdAt) });
+});
+
+// Master admin: delete app — requires x-master-pin header
+app.delete("/api/master/apps/:appId", async (c) => {
+  const guard = await checkMasterPin(c as never);
+  if (guard) return guard;
+  const db = getDb(c.env);
+  const appId = c.req.param("appId");
+  if (appId === DEFAULT_APP_ID) return c.json({ error: "Cannot delete the default app" }, 400);
+  await db.delete(apps).where(eq(apps.appId, appId));
+  return c.json({ ok: true });
 });
 
 // ------- ADMIN SESSIONS (Postgres-backed) -------
