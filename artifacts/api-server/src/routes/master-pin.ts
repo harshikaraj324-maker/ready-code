@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pool } from "../lib/db";
 import { hashPin, verifyPin, isHashed } from "../lib/hash";
+import { hasActiveSession } from "./admin-sessions";
 
 const router: IRouter = Router();
 const DEFAULT_MASTER_PIN = "master1234";
@@ -23,6 +24,10 @@ async function setMasterPinHash(plain: string): Promise<void> {
 router.post("/admin/verify-master-pin", async (req, res) => {
   const { pin } = req.body as { pin?: string };
   if (!pin) { res.status(400).json({ error: "PIN required" }); return; }
+  if (hasActiveSession()) {
+    res.status(403).json({ error: "Sub admin active hai. Pehle sub admin logout karo." });
+    return;
+  }
   const stored = await getStoredMasterPin();
   if (!verifyPin(pin, stored)) { res.status(401).json({ error: "Wrong Master PIN" }); return; }
   // Migrate legacy plain-text master PIN to hash on successful login
