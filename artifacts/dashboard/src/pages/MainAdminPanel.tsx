@@ -284,6 +284,7 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [copyMsg, setCopyMsg] = useState<Record<string, string>>({});
+  const [logoutAllId, setLogoutAllId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const fetchApps = useCallback(async () => {
@@ -320,6 +321,15 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
       });
       setAppList(prev => prev.filter(a => a.appId !== app.appId));
     } catch { /* ignore */ } finally { setDeletingId(null); }
+  }
+
+  async function logoutAll(app: App) {
+    if (!confirm(`"${app.name}" ke sabhi logged-in users ko logout karein?`)) return;
+    setLogoutAllId(app.appId);
+    try {
+      await fetch(`/api/admin/sessions?appId=${encodeURIComponent(app.appId)}`, { method: "DELETE" });
+      setAppList(prev => prev.map(a => a.appId === app.appId ? { ...a, activeSessions: 0 } : a));
+    } catch { /* ignore */ } finally { setLogoutAllId(null); }
   }
 
   function copyUrl(app: App) {
