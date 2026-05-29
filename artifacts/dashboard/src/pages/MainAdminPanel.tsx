@@ -240,23 +240,22 @@ function EditAppModal({ app, masterPin, onClose, onUpdated }: { app: App; master
           {/* Login Limit */}
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 11, color: T.muted, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Max Concurrent Logins</label>
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              {[1, 2, 3, 4, 5].map(n => (
-                <button key={n} type="button" onClick={() => setLoginLimit(n)}
-                  style={{
-                    flex: 1, padding: "10px 0", borderRadius: 8,
-                    background: loginLimit === n ? T.accent : T.border,
-                    border: loginLimit === n ? `2px solid ${T.accent}` : `2px solid transparent`,
-                    color: loginLimit === n ? "#fff" : T.muted,
-                    fontWeight: 800, fontSize: 16, cursor: "pointer",
-                    transition: "all .15s",
-                  }}>
-                  {n}
-                </button>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 10 }}>
+              <input
+                type="range" min={1} max={100} step={1}
+                value={loginLimit}
+                onChange={e => setLoginLimit(Number(e.target.value))}
+                style={{ flex: 1, accentColor: T.accent, cursor: "pointer", height: 4 }}
+              />
+              <div style={{ minWidth: 48, textAlign: "center", background: T.accent, color: "#fff", borderRadius: 8, padding: "6px 10px", fontWeight: 900, fontSize: 18, lineHeight: 1 }}>
+                {loginLimit}
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: T.muted, marginTop: 4, paddingRight: 62 }}>
+              <span>1</span><span>25</span><span>50</span><span>75</span><span>100</span>
             </div>
             <div style={{ fontSize: 11, color: T.muted, marginTop: 6 }}>
-              {loginLimit === 1 ? "Only 1 person can be logged in at a time" : `Max ${loginLimit} people can be logged in simultaneously`}
+              {loginLimit === 1 ? "Sirf 1 banda ek time pe logged in ho sakta hai" : `Max ${loginLimit} log ek saath logged in ho sakte hain`}
             </div>
           </div>
           {err && <div style={{ color: T.red, fontSize: 13, marginBottom: 10 }}>{err}</div>}
