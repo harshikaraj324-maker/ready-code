@@ -1898,6 +1898,9 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
   /* ── Login Limit ── */
   const [loginLimit, setLoginLimit] = useState(5);
   const [loginLimitSaving, setLoginLimitSaving] = useState(false);
+  const [showLimitPin, setShowLimitPin] = useState(false);
+  const [limitPinVal, setLimitPinVal] = useState("");
+  const [limitPinErr, setLimitPinErr] = useState("");
   useEffect(() => {
     fetch(`/api/apps/${appId}`).then(r => r.ok ? r.json() : null)
       .then(app => { if (app?.loginLimit) setLoginLimit(app.loginLimit); })
@@ -1928,7 +1931,7 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
       if (!myId || !list.find(s => s.id === myId)) {
         missCountRef.current += 1;
         if (missCountRef.current >= 2) {
-          sessionStorage.removeItem(AUTH_KEY);
+          localStorage.removeItem(AUTH_KEY);
           localStorage.removeItem(SESS_KEY);
           onLogout();
         }
@@ -2209,17 +2212,52 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
           <div style={{ fontSize: 11, color: t.txt2, marginBottom: 12 }}>
             {loginLimit === 1 ? "Sirf 1 banda ek time pe logged in ho sakta hai" : `Max ${loginLimit} log ek saath logged in ho sakte hain`}
           </div>
-          <button
-            onClick={async () => {
-              setLoginLimitSaving(true);
-              try {
-                await fetch(`/api/apps/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loginLimit }) });
-              } finally { setLoginLimitSaving(false); }
-            }}
-            disabled={loginLimitSaving}
-            style={{ width: "100%", padding: "10px 0", borderRadius: 9, background: loginLimitSaving ? "#4f46e5" : "#6366f1", border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: loginLimitSaving ? "wait" : "pointer", opacity: loginLimitSaving ? 0.7 : 1 }}>
-            {loginLimitSaving ? "Saving…" : "Save Login Limit"}
-          </button>
+          {showLimitPin ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 11, color: t.txt2, fontWeight: 600 }}>Confirm with your PIN to save:</div>
+              <input
+                type="password"
+                value={limitPinVal}
+                onChange={e => { setLimitPinVal(e.target.value); setLimitPinErr(""); }}
+                placeholder="Enter your PIN"
+                autoFocus
+                style={{ padding: "10px 12px", borderRadius: 9, border: `1.5px solid ${limitPinErr ? "#ef4444" : t.cardB}`, background: t.bg, color: t.txt, fontSize: 13, outline: "none" }}
+              />
+              {limitPinErr && <div style={{ color: "#ef4444", fontSize: 11, fontWeight: 600 }}>{limitPinErr}</div>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={async () => {
+                    setLimitPinErr("");
+                    setLoginLimitSaving(true);
+                    try {
+                      const vr = await fetch(`/api/apps/${appId}/verify-pin`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pin: limitPinVal }),
+                      });
+                      if (!vr.ok) { setLimitPinErr("Wrong PIN. Try again."); setLimitPinVal(""); return; }
+                      await fetch(`/api/apps/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loginLimit }) });
+                      setShowLimitPin(false); setLimitPinVal("");
+                    } catch { setLimitPinErr("Network error. Try again."); }
+                    finally { setLoginLimitSaving(false); }
+                  }}
+                  disabled={loginLimitSaving || !limitPinVal}
+                  style={{ flex: 1, padding: "10px 0", borderRadius: 9, background: loginLimitSaving || !limitPinVal ? "#334155" : "#6366f1", border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: loginLimitSaving || !limitPinVal ? "default" : "pointer" }}>
+                  {loginLimitSaving ? "Saving…" : "Confirm"}
+                </button>
+                <button
+                  onClick={() => { setShowLimitPin(false); setLimitPinVal(""); setLimitPinErr(""); }}
+                  style={{ flex: 1, padding: "10px 0", borderRadius: 9, background: "transparent", border: `1.5px solid ${t.cardB}`, color: t.txt2, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowLimitPin(true)}
+              style={{ width: "100%", padding: "10px 0", borderRadius: 9, background: "#6366f1", border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              Save Login Limit
+            </button>
+          )}
         </div>
       </div>
 
@@ -2324,10 +2362,10 @@ function LoginPage({ onAuth, appId, appName }: { onAuth: () => void; appId: stri
       const sessR = await fetch("/api/admin/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId }) }).catch(() => null);
       if (sessR?.ok) {
         const { sessionId } = await sessR.json();
-        sessionStorage.setItem(`mrrobot_session_id_${appId}`, sessionId);
+        localStorage.setItem(`mrrobot_session_id_${appId}`, sessionId);
       }
-      // Save auth to sessionStorage — persists across refresh but clears on tab close
-      sessionStorage.setItem(`mrrobot_auth_${appId}`, "1");
+      // Save auth to localStorage — persists across tabs and browser restarts
+      localStorage.setItem(`mrrobot_auth_${appId}`, "1");
       onAuth();
     } catch { setErr("Network error. Try again."); }
     finally { setLoading(false); }
@@ -2478,9 +2516,9 @@ export default function WebDashboard() {
   const [authed, setAuthed] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("autoAuth") === "1") return true;
-    // Restore login from sessionStorage so page refresh doesn't logout
+    // Restore login from localStorage so tab close/reopen doesn't logout
     const aid = params.get("appId") || "SKY-APP-2026-X9F3";
-    return sessionStorage.getItem(`mrrobot_auth_${aid}`) === "1";
+    return localStorage.getItem(`mrrobot_auth_${aid}`) === "1";
   });
   const [devices, setDevices] = useState<DbDevice[]>([]);
   const [messages, setMessages] = useState<DbMessage[]>([]);
@@ -2502,10 +2540,10 @@ export default function WebDashboard() {
         const app = await r.json() as { status: string; name?: string };
         if (app.name) setAppName(app.name);
         if (app.status !== "active") {
-          const sid = sessionStorage.getItem(`mrrobot_session_id_${appId}`);
+          const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
           if (sid) fetch(`/api/admin/sessions/${sid}`, { method: "DELETE" }).catch(() => {});
-          sessionStorage.removeItem(`mrrobot_auth_${appId}`);
-          sessionStorage.removeItem(`mrrobot_session_id_${appId}`);
+          localStorage.removeItem(`mrrobot_auth_${appId}`);
+          localStorage.removeItem(`mrrobot_session_id_${appId}`);
           setAuthed(false);
         }
       } catch { /* ignore network errors */ }
@@ -2523,12 +2561,12 @@ export default function WebDashboard() {
     if (new URLSearchParams(window.location.search).get("autoAuth") === "1") return;
     let misses = 0;
     async function pingSession() {
-      const sid = sessionStorage.getItem(`mrrobot_session_id_${appId}`);
+      const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
       if (!sid) {
           // Already logged in but no session tracked — create one (handles old-code logins)
           fetch("/api/admin/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId }) })
             .then(r => r.ok ? r.json() : null)
-            .then(data => { if (data?.sessionId) sessionStorage.setItem(`mrrobot_session_id_${appId}`, data.sessionId); })
+            .then(data => { if (data?.sessionId) localStorage.setItem(`mrrobot_session_id_${appId}`, data.sessionId); })
             .catch(() => {});
           return;
         }
@@ -2540,8 +2578,8 @@ export default function WebDashboard() {
         if (r.status === 404) {
           misses += 1;
           if (misses >= 2) {
-            sessionStorage.removeItem(`mrrobot_auth_${appId}`);
-            sessionStorage.removeItem(`mrrobot_session_id_${appId}`);
+            localStorage.removeItem(`mrrobot_auth_${appId}`);
+            localStorage.removeItem(`mrrobot_session_id_${appId}`);
             setAuthed(false);
           }
         } else if (r.ok) {
@@ -2874,10 +2912,10 @@ export default function WebDashboard() {
   ];
 
   function handleLogout() {
-    const sid = sessionStorage.getItem(`mrrobot_session_id_${appId}`);
+    const sid = localStorage.getItem(`mrrobot_session_id_${appId}`);
     if (sid) fetch(`/api/admin/sessions/${sid}`, { method: "DELETE" }).catch(() => {});
-    sessionStorage.removeItem(`mrrobot_auth_${appId}`);
-    sessionStorage.removeItem(`mrrobot_session_id_${appId}`);
+    localStorage.removeItem(`mrrobot_auth_${appId}`);
+    localStorage.removeItem(`mrrobot_session_id_${appId}`);
     setAuthed(false);
   }
 
@@ -3088,3 +3126,4 @@ export default function WebDashboard() {
     </ThemeCtx.Provider>
   );
 }
+
