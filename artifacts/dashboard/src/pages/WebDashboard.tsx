@@ -1895,6 +1895,15 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
   const [sessLoading, setSessLoading] = useState(true);
   const mySessionId = localStorage.getItem(SESS_KEY) ?? "";
 
+  /* ── Login Limit ── */
+  const [loginLimit, setLoginLimit] = useState(5);
+  const [loginLimitSaving, setLoginLimitSaving] = useState(false);
+  useEffect(() => {
+    fetch(`/api/apps/${appId}`).then(r => r.ok ? r.json() : null)
+      .then(app => { if (app?.loginLimit) setLoginLimit(app.loginLimit); })
+      .catch(() => {});
+  }, [appId]);
+
   // Skip auto-logout on the first poll — avoids false logouts from cold-start /
   // network races right after Settings opens.
   const firstFetchRef = useRef(true);
@@ -2478,11 +2487,9 @@ export default function WebDashboard() {
   const [formData, setFormData] = useState<DbFormData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loginLimit, setLoginLimit] = useState(5);
-  const [loginLimitSaving, setLoginLimitSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/apps/${appId}`).then(r => r.ok ? r.json() : null).then(app => { if (app?.name) setAppName(app.name); if (app?.loginLimit) setLoginLimit(app.loginLimit); }).catch(() => {});
+    fetch(`/api/apps/${appId}`).then(r => r.ok ? r.json() : null).then(app => { if (app?.name) setAppName(app.name); }).catch(() => {});
   }, [appId]);
 
   // Poll app status every 10s — force logout if app is disabled
