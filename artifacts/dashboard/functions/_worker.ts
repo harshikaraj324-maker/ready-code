@@ -458,11 +458,12 @@ app.post("/api/apps", async (c) => {
 
 app.patch("/api/apps/:appId", async (c) => {
   const db = getDb(c.env);
-  const body = await c.req.json() as { name?: string; pin?: string; status?: string };
+  const body = await c.req.json() as { name?: string; pin?: string; status?: string; loginLimit?: number };
   const patch: Partial<typeof apps.$inferInsert> = {};
   if (body.name !== undefined) patch.name = body.name;
   if (body.pin !== undefined) patch.pin = body.pin;
   if (body.status !== undefined) patch.status = body.status;
+  if (body.loginLimit !== undefined) patch.loginLimit = Math.min(100, Math.max(1, Number(body.loginLimit)));
   if (Object.keys(patch).length === 0) return c.json({ error: "No fields to update" }, 400);
   const [row] = await db.update(apps).set(patch).where(eq(apps.appId, c.req.param("appId"))).returning();
   if (!row) return c.json({ error: "App not found" }, 404);
