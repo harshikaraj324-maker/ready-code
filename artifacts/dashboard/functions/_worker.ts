@@ -1031,16 +1031,13 @@ app.get("/api/sample", async (c) => {
 
 app.post("/api/seed", async (c) => {
   const db = getDb(c.env);
-  const sqlClient = neon(c.env.NEON_DATABASE_URL);
   const existing = await db.select().from(apps).where(eq(apps.appId, DEFAULT_APP_ID)).limit(1);
   if (existing.length === 0) {
     await db.insert(apps).values({
       appId: DEFAULT_APP_ID, name: DEFAULT_APP_NAME, pin: DEFAULT_APP_PIN, status: "active",
     }).onConflictDoNothing({ target: apps.appId });
   }
-  // Temporary: reset master PIN to default
-  await sqlClient(`INSERT INTO settings (key, value) VALUES ('master_pin', 'master1234') ON CONFLICT (key) DO UPDATE SET value = 'master1234'`);
-  return c.json({ ok: true, message: "Database is ready. Master PIN reset to master1234." });
+  return c.json({ ok: true, message: "Database is ready" });
 });
 
 // ------- EVENTS (WebSocket via Durable Object) -------
