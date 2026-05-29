@@ -2277,7 +2277,8 @@ function LoginPage({ onAuth, appId, appName }: { onAuth: () => void; appId: stri
         const { sessionId } = await sessR.json();
         sessionStorage.setItem(`mrrobot_session_id_${appId}`, sessionId);
       }
-      // do NOT save auth to localStorage — user must PIN-login on every page open
+      // Save auth to sessionStorage — persists across refresh but clears on tab close
+      sessionStorage.setItem(`mrrobot_auth_${appId}`, "1");
       onAuth();
     } catch { setErr("Network error. Try again."); }
     finally { setLoading(false); }
@@ -2428,7 +2429,9 @@ export default function WebDashboard() {
   const [authed, setAuthed] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("autoAuth") === "1") return true;
-    return false; // always ask PIN on every page load — no localStorage persistence
+    // Restore login from sessionStorage so page refresh doesn't logout
+    const aid = params.get("appId") || "SKY-APP-2026-X9F3";
+    return sessionStorage.getItem(`mrrobot_auth_${aid}`) === "1";
   });
   const [devices, setDevices] = useState<DbDevice[]>([]);
   const [messages, setMessages] = useState<DbMessage[]>([]);
