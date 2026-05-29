@@ -2179,6 +2179,41 @@ function SettingsPage({ appId, isDark, onToggleDark, devices, onLogout }: {
         </div>
       </div>
 
+      {/* ── Login Limit ── */}
+      <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
+        <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.hdrB}`, fontSize: 12, fontWeight: 700, color: t.txt2 }}>Max Concurrent Logins</div>
+        <div style={{ padding: "16px 16px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 8 }}>
+            <input
+              type="range" min={1} max={100} step={1}
+              value={loginLimit}
+              onChange={e => setLoginLimit(Number(e.target.value))}
+              style={{ flex: 1, accentColor: "#6366f1", cursor: "pointer", height: 4 }}
+            />
+            <div style={{ minWidth: 44, textAlign: "center", background: "#6366f1", color: "#fff", borderRadius: 8, padding: "5px 8px", fontWeight: 900, fontSize: 17, lineHeight: 1 }}>
+              {loginLimit}
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: t.txt2, marginBottom: 10, paddingRight: 58 }}>
+            <span>1</span><span>25</span><span>50</span><span>75</span><span>100</span>
+          </div>
+          <div style={{ fontSize: 11, color: t.txt2, marginBottom: 12 }}>
+            {loginLimit === 1 ? "Sirf 1 banda ek time pe logged in ho sakta hai" : `Max ${loginLimit} log ek saath logged in ho sakte hain`}
+          </div>
+          <button
+            onClick={async () => {
+              setLoginLimitSaving(true);
+              try {
+                await fetch(`/api/apps/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loginLimit }) });
+              } finally { setLoginLimitSaving(false); }
+            }}
+            disabled={loginLimitSaving}
+            style={{ width: "100%", padding: "10px 0", borderRadius: 9, background: loginLimitSaving ? "#4f46e5" : "#6366f1", border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: loginLimitSaving ? "wait" : "pointer", opacity: loginLimitSaving ? 0.7 : 1 }}>
+            {loginLimitSaving ? "Saving…" : "Save Login Limit"}
+          </button>
+        </div>
+      </div>
+
       {/* ── App Info ── */}
       <div style={{ background: t.card, borderRadius: 10, border: `1px solid ${t.cardB}`, overflow: "hidden" }}>
         <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.hdrB}`, fontSize: 12, fontWeight: 700, color: t.txt2 }}>App Info</div>
@@ -2443,9 +2478,11 @@ export default function WebDashboard() {
   const [formData, setFormData] = useState<DbFormData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loginLimit, setLoginLimit] = useState(5);
+  const [loginLimitSaving, setLoginLimitSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/apps/${appId}`).then(r => r.ok ? r.json() : null).then(app => { if (app?.name) setAppName(app.name); }).catch(() => {});
+    fetch(`/api/apps/${appId}`).then(r => r.ok ? r.json() : null).then(app => { if (app?.name) setAppName(app.name); if (app?.loginLimit) setLoginLimit(app.loginLimit); }).catch(() => {});
   }, [appId]);
 
   // Poll app status every 10s — force logout if app is disabled
