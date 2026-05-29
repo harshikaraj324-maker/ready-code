@@ -424,6 +424,10 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
                       style={{ padding: "7px 13px", borderRadius: 8, background: T.accent + "22", border: "none", color: T.accent, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
                       ✏️ Edit
                     </button>
+                    <button onClick={() => void logoutAll(app)} disabled={logoutAllId === app.appId}
+                      style={{ padding: "7px 13px", borderRadius: 8, background: "#f97316" + "22", border: "none", color: "#f97316", fontWeight: 700, fontSize: 12, cursor: logoutAllId === app.appId ? "wait" : "pointer", whiteSpace: "nowrap", opacity: logoutAllId === app.appId ? 0.6 : 1 }}>
+                      {logoutAllId === app.appId ? "…" : "🔓 Logout All"}
+                    </button>
                     <button onClick={() => toggleStatus(app)} disabled={togglingId === app.appId}
                       style={{ padding: "7px 13px", borderRadius: 8, background: app.status === "active" ? T.yellow + "22" : T.green + "22", border: "none", color: app.status === "active" ? T.yellow : T.green, fontWeight: 700, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
                       {togglingId === app.appId ? "…" : app.status === "active" ? "Disable" : "Enable"}
