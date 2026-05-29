@@ -409,7 +409,7 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
           <div style={{ textAlign: "center", padding: 60, color: T.muted }}>Loading…</div>
         ) : filteredApps.length === 0 ? (
           <div style={{ textAlign: "center", padding: 60, color: T.muted, background: T.card, borderRadius: 12, border: `1px solid ${T.border}` }}>
-            {search ? `"${search}" se koi app nahi mila.` : "No apps yet. Click "+ New App" to create one."}
+            {search ? `"${search}" se koi app nahi mila.` : 'No apps yet. Click "+ New App" to create one.'}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
