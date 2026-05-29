@@ -284,6 +284,7 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [copyMsg, setCopyMsg] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
 
   const fetchApps = useCallback(async () => {
     try {
@@ -330,6 +331,10 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
   }
 
   const statusColor = (s: string) => s === "active" ? T.green : T.red;
+  const filteredApps = search.trim() === "" ? appList : appList.filter(a =>
+    a.appId.toLowerCase().includes(search.trim().toLowerCase()) ||
+    a.name.toLowerCase().includes(search.trim().toLowerCase())
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "system-ui", color: T.text }}>
@@ -375,15 +380,30 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
           </button>
         </div>
 
+        {/* Search bar */}
+        <div style={{ marginBottom: 12, position: "relative" }}>
+          <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: T.muted, pointerEvents: "none" }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Search by App ID or name…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px 10px 36px", borderRadius: 9, background: T.card, border: `1px solid ${T.border}`, color: T.text, fontSize: 13, outline: "none", fontFamily: "monospace" }}
+          />
+          {search && (
+            <button onClick={() => setSearch("")} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.muted, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>✕</button>
+          )}
+        </div>
+
         {loading ? (
           <div style={{ textAlign: "center", padding: 60, color: T.muted }}>Loading…</div>
-        ) : appList.length === 0 ? (
+        ) : filteredApps.length === 0 ? (
           <div style={{ textAlign: "center", padding: 60, color: T.muted, background: T.card, borderRadius: 12, border: `1px solid ${T.border}` }}>
-            No apps yet. Click "+ New App" to create one.
+            {search ? `"${search}" se koi app nahi mila.` : "No apps yet. Click "+ New App" to create one."}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {appList.map(app => (
+            {filteredApps.map(app => (
               <div key={app.appId} style={{ background: T.card, borderRadius: 12, border: `1px solid ${T.border}`, padding: "16px 20px" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div style={{ flex: 1, minWidth: 240 }}>
