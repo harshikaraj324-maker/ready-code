@@ -35,6 +35,7 @@ interface DbDevice {
   androidVersion: number; sim1Carrier: string | null; sim1Phone: string | null;
   sim2Carrier: string | null; sim2Phone: string | null; status: string;
   lastOnline: string | null; forwardEnabled: boolean; forwardSlot: number | null; fcmToken: string | null; installedAt: string;
+  starred: boolean;
 }
 interface DbMessage {
   id: number; appId: string; deviceId: string; userId: string;
@@ -1300,13 +1301,10 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
   const [onlineTimer, setOnlineTimer] = useState(0); // live countdown for online_check
   const onlineTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // ── Like / Delete state ──
-  const LIKED_KEY = `mrrobot_liked_${appId}`;
-  const [likedDevices, setLikedDevices] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(`mrrobot_liked_${appId}`) ?? "[]") as string[]); } catch { return new Set(); }
-  });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [starringId, setStarringId] = useState<string | null>(null);
 
   // Live timeAgo ticker — refresh every second so "38s ago" keeps updating
   const [, setTick] = useState(0);
@@ -1390,14 +1388,21 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
     }
   }
 
-  function toggleLike(deviceId: string, e: React.MouseEvent) {
+  async function toggleLike(device: DbDevice, e: React.MouseEvent) {
     e.stopPropagation();
-    setLikedDevices(prev => {
-      const next = new Set(prev);
-      if (next.has(deviceId)) next.delete(deviceId); else next.add(deviceId);
-      localStorage.setItem(LIKED_KEY, JSON.stringify([...next]));
-      return next;
-    });
+    if (starringId === device.deviceId) return;
+    setStarringId(device.deviceId);
+    try {
+      await fetch(`/api/devices/${encodeURIComponent(device.deviceId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ starred: !device.starred }),
+      });
+      // Optimistically update local devices list via parent refresh event
+      window.dispatchEvent(new CustomEvent("mrrobot:refresh_devices"));
+    } finally {
+      setStarringId(null);
+    }
   }
 
   async function handleDeleteDevice(deviceId: string) {
@@ -1815,8 +1820,8 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                     {filtered.length - idx}.&nbsp;{device.name}
                   </span>
                   <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                    <button onClick={e => toggleLike(device.deviceId, e)} style={{ background: "none", border: "none", cursor: "pointer", padding: "3px", borderRadius: 5, display: "flex", alignItems: "center" }} title={likedDevices.has(device.deviceId) ? "Unlike" : "Like"}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill={likedDevices.has(device.deviceId) ? "#f59e0b" : "none"} stroke={likedDevices.has(device.deviceId) ? "#f59e0b" : "#64748b"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <button onClick={e => void toggleLike(device, e)} disabled={starringId === device.deviceId} style={{ background: "none", border: "none", cursor: starringId === device.deviceId ? "wait" : "pointer", padding: "3px", borderRadius: 5, display: "flex", alignItems: "center", opacity: starringId === device.deviceId ? 0.5 : 1 }} title={device.starred ? "Unlike" : "Like"}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill={device.starred ? "#f59e0b" : "none"} stroke={device.starred ? "#f59e0b" : "#64748b"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     </button>
                     <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(device.deviceId); }} style={{ background: "none", border: "none", cursor: "pointer", padding: "3px", borderRadius: 5, display: "flex", alignItems: "center" }} title="Delete device">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
