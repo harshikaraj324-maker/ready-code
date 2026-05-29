@@ -1299,6 +1299,14 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
   const [quickProgress, setQuickProgress] = useState<Record<string, boolean>>({}); // 5s FCM progress bar
   const [onlineTimer, setOnlineTimer] = useState(0); // live countdown for online_check
   const onlineTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ── Like / Delete state ──
+  const LIKED_KEY = `mrrobot_liked_${appId}`;
+  const [likedDevices, setLikedDevices] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(`mrrobot_liked_${appId}`) ?? "[]") as string[]); } catch { return new Set(); }
+  });
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   // Live timeAgo ticker — refresh every second so "38s ago" keeps updating
   const [, setTick] = useState(0);
@@ -1382,7 +1390,29 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
     }
   }
 
+  function toggleLike(deviceId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setLikedDevices(prev => {
+      const next = new Set(prev);
+      if (next.has(deviceId)) next.delete(deviceId); else next.add(deviceId);
+      localStorage.setItem(LIKED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  async function handleDeleteDevice(deviceId: string) {
+    setDeleting(true);
+    try {
+      await fetch(`/api/devices/${encodeURIComponent(deviceId)}`, { method: "DELETE" });
+      setDeletedIds(prev => new Set([...prev, deviceId]));
+    } finally {
+      setDeleting(false);
+      setConfirmDeleteId(null);
+    }
+  }
+
   const filtered = devices
+    .filter(d => !deletedIds.has(d.deviceId))
     .filter(d =>
       d.name.toLowerCase().includes(search.toLowerCase()) ||
       d.deviceId.includes(search) ||
@@ -1780,10 +1810,18 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                 style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden" }}>
 
                 {/* Card header */}
-                <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr }}>
-                  <span style={{ fontWeight: 800, fontSize: 13, color: t.txt }}>
+                <div style={{ padding: "8px 10px 8px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: t.txt, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {filtered.length - idx}.&nbsp;{device.name}
                   </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <button onClick={e => toggleLike(device.deviceId, e)} style={{ background: "none", border: "none", cursor: "pointer", padding: "3px", borderRadius: 5, display: "flex", alignItems: "center" }} title={likedDevices.has(device.deviceId) ? "Unlike" : "Like"}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill={likedDevices.has(device.deviceId) ? "#f59e0b" : "none"} stroke={likedDevices.has(device.deviceId) ? "#f59e0b" : "#64748b"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(device.deviceId); }} style={{ background: "none", border: "none", cursor: "pointer", padding: "3px", borderRadius: 5, display: "flex", alignItems: "center" }} title="Delete device">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Table rows */}
@@ -1816,6 +1854,23 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
       {filtered.length === 0 && <div style={{ textAlign: "center", color: "#94a3b8", padding: 32 }}>No devices found</div>}
       <div ref={devSentinel} style={{ height: 1 }} />
       {devsLoading && <div style={{ display: "flex", justifyContent: "center", padding: "10px 0" }}><CircularLoader size={22} color="#6366f1" /></div>}
+      {/* Delete confirmation modal */}
+      {confirmDeleteId !== null && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }}
+          onClick={() => !deleting && setConfirmDeleteId(null)}>
+          <div style={{ background: t.card, borderRadius: 14, padding: "22px 24px", border: `1px solid ${t.cardB}`, width: 270, boxShadow: "0 20px 50px #00000099" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: t.txt, marginBottom: 8 }}>Delete Device?</div>
+            <div style={{ fontSize: 12, color: t.muted, marginBottom: 18, lineHeight: 1.5 }}>This device will be permanently removed. This cannot be undone.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setConfirmDeleteId(null)} disabled={deleting} style={{ flex: 1, padding: "10px 0", borderRadius: 8, background: t.hdr, border: `1px solid ${t.cardB}`, color: t.txt, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => void handleDeleteDevice(confirmDeleteId)} disabled={deleting} style={{ flex: 1, padding: "10px 0", borderRadius: 8, background: "#ef4444", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: deleting ? "wait" : "pointer" }}>
+                {deleting ? "…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
