@@ -1793,7 +1793,7 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
           style={{ border: "none", outline: "none", flex: 1, fontSize: 12, background: "transparent", color: t.txt }} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "stretch" }}>
         {visibleDevices.map((device, idx) => {
           const recent = device.status !== "uninstalled" && isRecent(device.lastOnline);
           const rows = [
@@ -1804,7 +1804,7 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
             { label: "User ID", value: device.userId, mono: true },
           ];
           return (
-            <div key={device.deviceId} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div key={device.deviceId} style={{ display: "flex", flexDirection: "column", gap: 6, height: "100%" }}>
               {/* Card box — clicking navigates to detail */}
               <div onClick={() => {
                 const scrollEl = document.getElementById("main-scroll");
@@ -1812,7 +1812,7 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                 internalCountRef.current = visibleDevices.length;
                 setSelected(device); setFromExternal(false); localStorage.setItem(DEVICE_KEY, device.deviceId);
               }}
-                style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden" }}>
+                style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.cardB}`, cursor: "pointer", overflow: "hidden", flex: 1 }}>
 
                 {/* Card header */}
                 <div style={{ padding: "8px 10px 8px 14px", borderBottom: `1px solid ${t.cardB}`, background: t.hdr, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
@@ -1836,15 +1836,15 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                     borderBottom: i < rows.length - 1 ? `1px solid ${t.hdrB}` : "none",
                     padding: "7px 14px",
                   }}>
-                    <span style={{ width: 64, fontSize: 11, color: t.muted, fontWeight: 600, flexShrink: 0 }}>{label}:</span>
-                    <span style={{ fontSize: 11, color: t.txt2, fontFamily: mono ? "monospace" : undefined, wordBreak: "break-all", lineHeight: 1.4 }}>{value}</span>
+                    <span style={{ width: 60, fontSize: 10, color: t.muted, fontWeight: 600, flexShrink: 0 }}>{label}:</span>
+                    <span style={{ fontSize: 10, color: t.txt2, fontFamily: mono ? "monospace" : undefined, wordBreak: "break-all", lineHeight: 1.4, flex: 1, minWidth: 0 }}>{value}</span>
                   </div>
                 ))}
 
                 {/* Online row */}
                 <div style={{ display: "flex", alignItems: "center", padding: "7px 14px" }}>
-                  <span style={{ width: 64, fontSize: 11, color: "#94a3b8", fontWeight: 600, flexShrink: 0 }}>Online:</span>
-                  <span style={{ fontSize: 11, fontWeight: recent ? 700 : 400, color: recent ? "#16a34a" : "#64748b" }}>
+                  <span style={{ width: 60, fontSize: 10, color: "#94a3b8", fontWeight: 600, flexShrink: 0 }}>Online:</span>
+                  <span style={{ fontSize: 10, fontWeight: recent ? 700 : 400, color: recent ? "#16a34a" : "#64748b" }}>
                     {device.status === "uninstalled" ? "Uninstalled" : timeAgo(device.lastOnline)}
                   </span>
                 </div>
