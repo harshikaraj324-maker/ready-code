@@ -1793,7 +1793,7 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
           style={{ border: "none", outline: "none", flex: 1, fontSize: 12, background: "transparent", color: t.txt }} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, alignItems: "stretch" }}>
         {visibleDevices.map((device, idx) => {
           const recent = device.status !== "uninstalled" && isRecent(device.lastOnline);
           const rows = [
