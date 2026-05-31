@@ -12,6 +12,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const CF_TOKEN = process.env.CF_TOKEN;
 const CF_ACCOUNT = process.env.CF_ACCOUNT || process.env.CLOUDFLARE_ACCOUNT_ID;
 const NEON_URL = process.env.NEON_DATABASE_URL;
+const SA_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '';
 const DO_NS_ID = process.env.EVENT_BUS_DO_NS_ID || 'e9ef6c83030d40af892d695000fdff23';
 const WORKER_NAME = process.env.WORKER_NAME || 'ready-code-dashboard';
 
@@ -32,6 +33,7 @@ const metadata = {
   compatibility_flags: ['nodejs_compat'],
   bindings: [
     { type: 'secret_text', name: 'NEON_DATABASE_URL', text: NEON_URL },
+    ...(SA_JSON ? [{ type: 'secret_text', name: 'FIREBASE_SERVICE_ACCOUNT_JSON', text: SA_JSON }] : []),
     { type: 'durable_object_namespace', name: 'EVENT_BUS', namespace_id: DO_NS_ID },
   ],
 };
