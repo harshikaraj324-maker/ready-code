@@ -1067,6 +1067,12 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       return app.fetch(request, env, ctx);
     }
+    // Short URL: /?appId=<appId>  →  /preview/dashboard/WebDashboard?appId=<appId>
+    if (url.pathname === "/" && url.searchParams.has("appId")) {
+      const dest = new URL(request.url);
+      dest.pathname = "/preview/dashboard/WebDashboard";
+      return Response.redirect(dest.toString(), 302);
+    }
     // fall through to Pages static assets (React SPA)
     return env.ASSETS.fetch(request);
   },
