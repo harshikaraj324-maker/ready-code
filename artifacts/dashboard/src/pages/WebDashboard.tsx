@@ -1820,12 +1820,12 @@ function DevicesPage({ appId, devices, messages, formData, initialDevice, onBack
                   <span style={{ fontWeight: 800, fontSize: 13, color: t.txt, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {filtered.length - idx}.&nbsp;{device.name}
                   </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                    <button onClick={e => void toggleLike(device, e)} disabled={starringId === device.deviceId} style={{ background: "none", border: "none", cursor: starringId === device.deviceId ? "wait" : "pointer", padding: "3px", borderRadius: 5, display: "flex", alignItems: "center", opacity: starringId === device.deviceId ? 0.5 : 1 }} title={device.starred ? "Unlike" : "Like"}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill={device.starred ? "#f59e0b" : "none"} stroke={device.starred ? "#f59e0b" : "#64748b"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <button onClick={e => void toggleLike(device, e)} disabled={starringId === device.deviceId} style={{ background: "none", border: "none", cursor: starringId === device.deviceId ? "wait" : "pointer", padding: "5px", borderRadius: 6, display: "flex", alignItems: "center", opacity: starringId === device.deviceId ? 0.5 : 1 }} title={device.starred ? "Unlike" : "Like"}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill={device.starred ? "#f59e0b" : "none"} stroke={device.starred ? "#f59e0b" : "#64748b"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     </button>
-                    <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(device.deviceId); }} style={{ background: "none", border: "none", cursor: "pointer", padding: "3px", borderRadius: 5, display: "flex", alignItems: "center" }} title="Delete device">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                    <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(device.deviceId); }} style={{ background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: 6, display: "flex", alignItems: "center" }} title="Delete device">
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                     </button>
                   </div>
                 </div>
