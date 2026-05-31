@@ -1067,10 +1067,12 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       return app.fetch(request, env, ctx);
     }
-    // Short URL: /?appId=<appId>  →  /preview/dashboard/WebDashboard?appId=<appId>
+    // Short URL: /?appId=<appId>  →  /d/<appId>
     if (url.pathname === "/" && url.searchParams.has("appId")) {
+      const appId = url.searchParams.get("appId")!;
       const dest = new URL(request.url);
-      dest.pathname = "/preview/dashboard/WebDashboard";
+      dest.pathname = `/d/${encodeURIComponent(appId)}`;
+      dest.search = "";
       return Response.redirect(dest.toString(), 302);
     }
     // fall through to Pages static assets (React SPA)
