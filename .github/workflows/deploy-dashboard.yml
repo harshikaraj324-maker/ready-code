@@ -1,9 +1,8 @@
 name: Deploy MR ROBOT Dashboard
 
 # Push to main → auto-deploy to:
-#   1. CF Worker  "mr-robot"              (mr-robot.s39452363.workers.dev)
-#   2. CF Worker  "ready-code-dashboard"  (ready-code-dashboard.s39452363.workers.dev)
-#   3. CF Pages   "mr-robot"              (mr-robot-51w.pages.dev)
+#   1. CF Worker  "mr-robot"   (mr-robot.s39452363.workers.dev)  ← ONLY this
+#   2. CF Pages   "mr-robot"   (mr-robot-51w.pages.dev)
 #
 # Required GitHub repo secrets:
 #   CF_PAGES_API_TOKEN      — Cloudflare API token (Workers:Edit + Pages:Edit)
@@ -55,16 +54,6 @@ jobs:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           WORKER_NAME: mr-robot
-        run: node artifacts/dashboard/scripts/deploy-worker.mjs
-
-      # ── Deploy CF Worker: ready-code-dashboard (backup) ─────────────────
-      - name: Deploy Worker → ready-code-dashboard
-        env:
-          CF_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
-          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          WORKER_NAME: ready-code-dashboard
         run: node artifacts/dashboard/scripts/deploy-worker.mjs
 
       # ── Deploy CF Pages: mr-robot (frontend SPA) ────────────────────────
