@@ -1,4 +1,13 @@
-name: Deploy Dashboard to CF Pages
+name: Deploy Dashboard Worker
+
+# Deploys the MR ROBOT Dashboard (React SPA + Hono API) to Cloudflare Workers.
+# Uses a combined worker approach: static assets are embedded into _worker.js,
+# bypassing CF Pages (which had broken direct-upload support in this account).
+#
+# Required GitHub repo secrets:
+#   - CF_PAGES_API_TOKEN   (cfat_... token with Workers:Edit permission)
+#   - CLOUDFLARE_ACCOUNT_ID
+#   - NEON_DATABASE_URL
 
 on:
   push:
@@ -33,89 +42,12 @@ jobs:
           BASE_PATH="/" NODE_ENV=production \
             pnpm --filter @workspace/dashboard run build
 
-      - name: Upload to CF Pages (direct API)
+      - name: Bundle combined Worker (static assets + API)
+        run: node artifacts/dashboard/scripts/bundle-worker.mjs
+
+      - name: Deploy to Cloudflare Workers
         env:
-          CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
-          CF_ACCOUNT_ID: 5fcb894d018e54172f8018be09e62634
-          CF_PROJECT: mr-robot-dashboard
-        run: |
-          node << 'UPLOAD_SCRIPT'
-          const fs = require("fs");
-          const path = require("path");
-          const crypto = require("crypto");
-          const https = require("https");
-
-          const TOKEN = process.env.CF_PAGES_API_TOKEN;
-          const ACCOUNT = process.env.CF_ACCOUNT_ID;
-          const PROJECT = process.env.CF_PROJECT;
-          const DIST = "artifacts/dashboard/dist/public";
-
-          function getMime(f) {
-            if (f.endsWith(".js")) return "application/javascript";
-            if (f.endsWith(".css")) return "text/css";
-            if (f.endsWith(".html")) return "text/html";
-            if (f.endsWith(".svg")) return "image/svg+xml";
-            if (f.endsWith(".jpg") || f.endsWith(".jpeg")) return "image/jpeg";
-            if (f.endsWith(".apk")) return "application/vnd.android.package-archive";
-            if (f.endsWith(".txt")) return "text/plain";
-            return "application/octet-stream";
-          }
-
-          function walk(dir, rel, files) {
-            for (const f of fs.readdirSync(dir)) {
-              const abs = path.join(dir, f);
-              const relPath = rel ? rel + "/" + f : f;
-              if (fs.statSync(abs).isDirectory()) walk(abs, relPath, files);
-              else {
-                const content = fs.readFileSync(abs);
-                const hash = crypto.createHash("sha256").update(content).digest("hex");
-                files.push({ path: "/" + relPath, content, hash, mime: getMime(f) });
-              }
-            }
-          }
-
-          const files = [];
-          walk(DIST, "", files);
-          console.log("Files:", files.map(f => f.path + " (" + Math.round(f.content.length/1024) + "KB)").join(", "));
-
-          const boundary = "----FormBoundary" + crypto.randomBytes(8).toString("hex");
-          const parts = [];
-          for (const f of files) {
-            parts.push(Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"files\"; filename=\"" + f.hash + "\"\r\nContent-Type: " + f.mime + "\r\n\r\n"));
-            parts.push(f.content);
-            parts.push(Buffer.from("\r\n"));
-          }
-          const manifest = {};
-          for (const f of files) manifest[f.path] = f.hash;
-          parts.push(Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"manifest\"\r\n\r\n" + JSON.stringify(manifest) + "\r\n"));
-          parts.push(Buffer.from("--" + boundary + "--\r\n"));
-          const body = Buffer.concat(parts);
-
-          const options = {
-            hostname: "api.cloudflare.com",
-            path: "/client/v4/accounts/" + ACCOUNT + "/pages/projects/" + PROJECT + "/deployments",
-            method: "POST",
-            headers: {
-              "Authorization": "Bearer " + TOKEN,
-              "Content-Type": "multipart/form-data; boundary=" + boundary,
-              "Content-Length": body.length,
-            }
-          };
-
-          const req = https.request(options, res => {
-            let data = "";
-            res.on("data", chunk => data += chunk);
-            res.on("end", () => {
-              const j = JSON.parse(data);
-              if (j.success) {
-                console.log("Deployed:", j.result.id, j.result.url);
-              } else {
-                console.error("FAILED:", JSON.stringify(j.errors));
-                process.exit(1);
-              }
-            });
-          });
-          req.on("error", e => { console.error(e); process.exit(1); });
-          req.write(body);
-          req.end();
-          'UPLOAD_SCRIPT'
+          CF_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: node artifacts/dashboard/scripts/deploy-worker.mjs
