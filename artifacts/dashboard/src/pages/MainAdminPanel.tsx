@@ -332,7 +332,7 @@ function Dashboard({ masterPin, onLogout, onPinChanged }: { masterPin: string; o
   }
 
   function copyUrl(app: App) {
-    const url = `https://mr-robot-5s3.pages.dev/preview/dashboard/WebDashboard?appId=${app.appId}`;
+    const url = `${window.location.origin}/?appId=${app.appId}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopyMsg(p => ({ ...p, [app.appId]: "Copied!" }));
       setTimeout(() => setCopyMsg(p => ({ ...p, [app.appId]: "" })), 2000);
