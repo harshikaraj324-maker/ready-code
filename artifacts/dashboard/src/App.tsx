@@ -19,6 +19,7 @@ function Router() {
     <Switch>
       <Route path="/preview/dashboard/WebDashboard" component={WebDashboard} />
       <Route path="/mr-professor" component={MainAdminPanel} />
+      <Route path="/" component={MainAdminPanel} />
       <Route component={NotFound} />
     </Switch>
   );
