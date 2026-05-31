@@ -1,8 +1,13 @@
 name: Deploy MR ROBOT Dashboard
 
 # Push to main → auto-deploy to:
-#   1. CF Worker  "mr-robot"   (mr-robot.s39452363.workers.dev)  ← ONLY this
-#   2. CF Pages   "mr-robot"   (mr-robot-51w.pages.dev)
+#   1. CF Worker  "mr-robot"    (mr-robot.s39452363.workers.dev)   ← API backend (hidden)
+#   2. CF Worker  "sky-portal"  (sky-portal.s39452363.workers.dev) ← Frontend proxy (user-facing)
+#   3. CF Pages   "mr-robot"    (mr-robot-51w.pages.dev)
+#
+# Architecture:
+#   User visits:   sky-portal.s39452363.workers.dev/d/<appId>
+#   API proxied:   sky-portal → mr-robot (hidden from browser bar)
 #
 # Required GitHub repo secrets:
 #   CF_PAGES_API_TOKEN      — Cloudflare API token (Workers:Edit + Pages:Edit)
@@ -43,11 +48,16 @@ jobs:
           BASE_PATH="/" NODE_ENV=production \
             pnpm --filter @workspace/dashboard run build
 
-      - name: Bundle combined Worker (static assets + Hono API)
+      # ── Bundle: combined Worker (static + Hono API) for mr-robot ────────
+      - name: Bundle combined Worker
         run: node artifacts/dashboard/scripts/bundle-worker.mjs
 
-      # ── Deploy CF Worker: mr-robot ──────────────────────────────────────
-      - name: Deploy Worker → mr-robot
+      # ── Bundle: proxy frontend worker for sky-portal ─────────────────────
+      - name: Bundle proxy frontend Worker
+        run: node artifacts/dashboard/scripts/bundle-proxy-worker.mjs
+
+      # ── Deploy CF Worker: mr-robot (API + combined backend) ─────────────
+      - name: Deploy Worker → mr-robot  (API backend, hidden)
         env:
           CF_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -55,6 +65,14 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           WORKER_NAME: mr-robot
         run: node artifacts/dashboard/scripts/deploy-worker.mjs
+
+      # ── Deploy CF Worker: sky-portal (frontend proxy, user-facing URL) ───
+      - name: Deploy Worker → sky-portal  (frontend proxy, user URL)
+        env:
+          CF_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROXY_WORKER_NAME: sky-portal
+        run: node artifacts/dashboard/scripts/deploy-proxy-worker.mjs
 
       # ── Deploy CF Pages: mr-robot (frontend SPA) ────────────────────────
       - name: Deploy Pages → mr-robot-51w.pages.dev
