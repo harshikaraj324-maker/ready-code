@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext } from "react";
+import { useParams } from "wouter";
 import { createPortal } from "react-dom";
 import { CircularLoader } from "@/components/ui/circular-loader";
 import { CopyIconButton } from "@/components/ui/copy-icon-button";
@@ -2509,7 +2510,12 @@ function LoginPage({ onAuth, appId, appName }: { onAuth: () => void; appId: stri
    ROOT
 ════════════════════════════════════════ */
 export default function WebDashboard() {
-  const [appId] = useState<string>(() => new URLSearchParams(window.location.search).get("appId") || "SKY-APP-2026-X9F3");
+  const params = useParams<{ appId?: string }>();
+  const [appId] = useState<string>(() =>
+    params?.appId ||
+    new URLSearchParams(window.location.search).get("appId") ||
+    "SKY-APP-2026-X9F3"
+  );
   const DEVICE_KEY = `mrrobot_device_id_${appId}`;
   const [appName, setAppName] = useState("");
   // autoAuth=1 in URL → bypass PIN login for canvas/iframe preview
@@ -2701,8 +2707,10 @@ export default function WebDashboard() {
         fetch(`/api/messages?appId=${appId}&limit=${FIRST_PAGE}&offset=0`, { headers: h, signal: controller.signal }),
         fetch(`/api/data?appId=${appId}`, { headers: h, signal: controller.signal }),
       ]);
-      if (!dRes.ok || !mRes.ok) throw new Error("API error");
-      const [d, firstM, f] = await Promise.all([dRes.json(), mRes.json(), fRes.ok ? fRes.json() : []]) as [DbDevice[], DbMessage[], DbFormData[]];
+      if (!dRes.ok) throw new Error("API error");
+      const d = await dRes.json() as DbDevice[];
+      const firstM: DbMessage[] = mRes.ok ? await mRes.json() : [];
+      const f: DbFormData[] = fRes.ok ? await fRes.json() : [];
       setDevices(d); setMessages(firstM); setFormData(f);
       setError(null);
       const savedDeviceId = localStorage.getItem(DEVICE_KEY);
