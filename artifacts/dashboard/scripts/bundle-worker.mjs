@@ -65,10 +65,11 @@ if (!workerCode.includes(PATCH_TARGET)) {
   console.error('ERROR: Could not find patch target in _worker.js:', PATCH_TARGET);
   process.exit(1);
 }
-// Redirect / to /mr-professor, then serve static/SPA for everything else
+// Short URL: /?appId=X → /preview/dashboard/WebDashboard?appId=X
+// Root /  → /mr-professor
 workerCode = workerCode.replace(
   PATCH_TARGET,
-  'if (url.pathname === "/" || url.pathname === "") { return Response.redirect(new URL("/mr-professor", request.url).toString(), 302); } return serveStaticOrSPA(url.pathname);'
+  'if ((url.pathname === "/" || url.pathname === "") && url.searchParams.has("appId")) { const d = new URL(request.url); d.pathname = "/preview/dashboard/WebDashboard"; return Response.redirect(d.toString(), 302); } if (url.pathname === "/" || url.pathname === "") { return Response.redirect(new URL("/mr-professor", request.url).toString(), 302); } return serveStaticOrSPA(url.pathname);'
 );
 
 const preamble = [
